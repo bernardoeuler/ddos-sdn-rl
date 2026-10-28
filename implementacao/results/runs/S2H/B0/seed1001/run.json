@@ -1,0 +1,15 @@
+{
+  "run_dir": "/root/ddosrl_runs/S2H/B0/seed1001",
+  "policy": "B0",
+  "scenario": "S2H",
+  "seed": 1001,
+  "attackers": [
+    "10.0.0.8",
+    "10.0.0.6",
+    "10.0.0.11",
+    "10.0.0.12"
+  ],
+  "epsilon": 0.0,
+  "model_dir": null,
+  "config": "/mnt/c/Users/berna/Projects/ufc/redes/artigo/implementacao/configs/default.yaml"
+}

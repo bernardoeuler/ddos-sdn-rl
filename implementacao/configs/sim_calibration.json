@@ -2,8 +2,14 @@
   "syn_backlog": 65536,
   "syn_hold_s": 5,
   "pkt_syn": 53.99999999999999,
+  "pkt_udp": 553.995,
+  "pkt_icmp": 97.995,
   "base_rtt_ms": 8.625,
   "loss_exp": 2,
   "attack_pps_scale_syn": 0.9261994718888021,
-  "resp_ratio_syn": 0.40405
+  "resp_ratio_syn": 0.40405,
+  "attack_pps_scale_udp": 0.934008061398879,
+  "resp_ratio_udp": 0.00063,
+  "attack_pps_scale_icmp": 0.9294740416833506,
+  "resp_ratio_icmp": 0.47262
 }

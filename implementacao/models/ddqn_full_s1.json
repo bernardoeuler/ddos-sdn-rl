@@ -3,7 +3,7 @@
   "seed": 1,
   "updates": 160000,
   "episodes": 446,
-  "train_s": 556.7,
+  "train_s": 424.4,
   "python": "3.14.4",
   "agent_cfg": {
     "dt_s": 1.0,
@@ -43,5 +43,9 @@
     "w4": 0.5,
     "w5": 0.05,
     "w6": 0.3
-  }
+  },
+  "finetune_episodes": 12,
+  "finetune_epsilon": 0.1,
+  "finetune_updates_per_episode": 300,
+  "finetune_lr": 3e-05
 }

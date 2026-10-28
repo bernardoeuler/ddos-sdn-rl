@@ -3,7 +3,7 @@
   "seed": 1,
   "updates": 160024,
   "episodes": 447,
-  "train_s": 554.9,
+  "train_s": 430.2,
   "python": "3.14.4",
   "agent_cfg": {
     "dt_s": 1.0,

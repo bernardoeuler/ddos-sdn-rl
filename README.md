@@ -29,20 +29,19 @@ O artigo, no modelo SBC, está em [`main.tex`](main.tex), e o código em [`imple
 
 ## Resultados preliminares
 
-Uma semente, rodadas de 60 s no Mininet, sem testes estatísticos.
+Primeiras 40 de 270 rodadas da campanha (180 s, semente 1001, cenários S0–S2), média de S1L–S2M. A campanha completa continua em execução.
 
-| Cenário | Método | Ataque mitigado | Disponibilidade | Legítimos restringidos | Reação |
-|---|---|---|---|---|---|
-| SYN flood alto | B1 limiar | 90,6% | 45,3% | 0% | 1,74 s |
-| | B3 RF | 94,7% | 42,9% | 0% | 0,77 s |
-| | **Agente** | **95,2%** | 45,3% | 25% | 1,21 s |
-| UDP flood alto | B1 limiar | 95,0% | 100% | 0% | 0,62 s |
-| | B3 RF | 91,6% | 98,5% | 0% | 1,77 s |
-| | **Agente** | **95,7%** | 100% | 0% | **0,35 s** |
-| Flash crowd | B1 / B3 / Agente | — | 37,6% / 36,0% / 38,0% | 0% | — |
+| Método | Ataque mitigado | Legítimos restringidos | Disponibilidade | Reação |
+|---|---|---|---|---|
+| B0 sem defesa | 0% | 0% | 53,5% | — |
+| B1 limiar | 94,1% | 0% | 86,4% | 1,7 s |
+| B2 entropia | 94,0% | 100% | 23,6% | 1,7 s |
+| B3 RF | 94,5% | 4,2% | 86,0% | 1,1 s |
+| B4 RF graduado | 95,0% | 0% | 84,4% | 1,2 s |
+| **Agente** | 55,5% | 52,5% | 54,5% | **0,3 s** |
 
-- **Mitigação, reação e custo:** o agente mitiga um pouco mais e reage mais rápido que os baselines. O custo é de 0,3 ms por decisão, contra 35 ms do Random Forest.
-- **Disponibilidade:** fica empatada com os baselines.
+- **Resultado negativo até aqui:** o agente reage mais rápido e custa 0,3 ms por decisão (contra 28 ms do RF), mas sob SYN flood restringe 62–88% das origens legítimas. No UDP ele é competitivo (100% de disponibilidade).
+- **Causa provável:** lacuna entre simulador e emulação no efeito do SYN sobre os clientes, e um ajuste fino curto e com exploração.
 - **Ações graduadas:** quase não foram usadas (cerca de 6% das decisões). Com floods facilmente separáveis, bloquear rápido já é ótimo.
 
 A discussão completa e as ameaças à validade estão nas Seções 7 e 8 do artigo.

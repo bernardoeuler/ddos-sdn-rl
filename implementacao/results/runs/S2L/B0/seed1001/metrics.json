@@ -1,0 +1,37 @@
+{
+  "scenario": "S2L",
+  "policy": "B0",
+  "seed": 1001,
+  "n_attackers": 4,
+  "tab": 0.0,
+  "attack_sent_mb": 129.735796,
+  "attack_mitigated_mb": 0.0,
+  "legit_restricted_any": 0.0,
+  "legit_restricted_time": 0.0,
+  "legit_redirected_any": 0.0,
+  "legit_redirected_time": 0.0,
+  "availability": 0.9994756161510225,
+  "availability_pre": 1.0,
+  "requests": 1907,
+  "latency_p50_ms": 137.6,
+  "latency_p95_ms": 394.225,
+  "rtt_p50_ms": 42.9,
+  "probe_loss": 0.02575107296137339,
+  "reaction_s_mean": Infinity,
+  "reaction_s": [
+    Infinity,
+    Infinity,
+    Infinity,
+    Infinity
+  ],
+  "recovery_s": 0.0,
+  "ctrl_cpu_pct": 0.5292069534318178,
+  "ctrl_rss_mb": 63.19921875,
+  "of_msgs_per_s": 14.352942815583775,
+  "decision_ms_mean": 0.0399891665741355,
+  "decision_ms_p95": 0.052910000795236556,
+  "actions": {
+    "leg_permitir": 960,
+    "atk_permitir": 480
+  }
+}

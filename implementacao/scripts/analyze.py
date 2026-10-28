@@ -16,7 +16,7 @@ import pandas as pd
 IMPL = Path(__file__).resolve().parents[1]
 OUT = IMPL / "results"
 QP1 = ["S1L", "S1M", "S1H", "S2L", "S2M", "S2H", "S3L", "S3M", "S3H"]
-QP2 = ["S4", "S5", "S6", "S7"]
+QP2 = ["S4", "S5", "S6", "S7", "S8"]
 METHODS = ["B0", "B1", "B2", "B3", "B4", "DQN"]
 NAMES = {"B0": "B0 -- Sem defesa", "B1": "B1 -- Limiar fixo", "B2": "B2 -- Entropia",
          "B3": "B3 -- RF", "B4": "B4 -- RF graduado", "DQN": "Agente (proposto)",
@@ -191,7 +191,7 @@ def main():
     (tdir / "qp2_adaptacao.tex").write_text("\n".join(rows) + "\n", encoding="utf8")
     table(df, QP2, ["B1", "B3", "B4", "DQN"], [("availability", "Disp.", 100, 1),
                                                 ("legit_restricted_any", "Bloq.", 100, 1)], tdir / "qp2_adaptacao_agregado")
-    table(df, ["S1H", "S4", "S5"], ["DQN", "DQN2", "DQNLF"],
+    table(df, ["S1H", "S4", "S5", "S8"], ["DQN", "DQN2", "DQNLF"],
           [("tab", "TAB", 100, 1), ("legit_restricted_any", "Legít.", 100, 1), ("availability", "Disp.", 100, 1),
            ("reaction_s_mean", "Reação", 1, 1)], tdir / "qp3_ablacao")
     table(df, ["S1H"], ["B1", "B3", "DQN"], [("ctrl_cpu_pct", "CPU", 1, 1), ("ctrl_rss_mb", "Mem", 1, 0),
