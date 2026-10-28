@@ -4,7 +4,7 @@ set -u
 V=/opt/ddosrl-venv/bin
 mn -c >/dev/null 2>&1
 cd "$(dirname "$0")/.."
-$V/python -m ddosrl.sdn.launch_controller --ofp-tcp-listen-port 6653 os_ken.app.simple_switch_13 >/tmp/smoke_osken.log 2>&1 &
+$V/python -m ddosrl.sdn.launch_controller --ofp-tcp-listen-port 6653 tests.smoke_switch >/tmp/smoke_osken.log 2>&1 &
 CP=$!
 sleep 3
 $V/python - <<'EOF'
@@ -26,5 +26,5 @@ print(subprocess.run(["ovs-ofctl", "-O", "OpenFlow13", "dump-meters", "s1"],
                      capture_output=True, text=True).stdout.strip())
 net.stop()
 EOF
-kill $CP
+kill $CP 2>/dev/null
 echo "--- log controlador"; tail -5 /tmp/smoke_osken.log
