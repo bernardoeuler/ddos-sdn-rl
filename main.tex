@@ -40,7 +40,7 @@
   on Mininet, Open vSwitch and os-ken (a maintained Ryu fork), trained in a
   simulator calibrated with emulation traces, and compared with fixed
   thresholds, entropy detection and Random Forest classifiers.
-  Preliminary results (S0--S2, one seed) show that the agent reacts fastest (0.3~s) at negligible controller cost, but under SYN floods it restricts many legitimate sources and trails fixed thresholds and Random Forest in availability.
+  Preliminary results (one seed) show that the agent reacts fastest (0.3~s) at negligible controller cost and, mostly by redirecting attackers, keeps availability above 99\% under UDP and ICMP floods; under SYN floods, however, it restricts many legitimate sources and trails fixed thresholds and Random Forest.
 \end{abstract}
 
 \begin{resumo}
@@ -53,7 +53,7 @@
   e o custo de cada ação. O agente foi implementado sobre Mininet, Open vSwitch
   e os-ken (\textit{fork} mantido do Ryu), treinado em um simulador calibrado
   com traços da emulação e comparado a limiares fixos, detecção por entropia e
-  classificadores Random Forest. Resultados preliminares (S0--S2, uma semente) mostram que o agente reage mais rápido (0,3~s) com custo desprezível no controlador, mas sob inundação SYN restringe muitas origens legítimas e fica atrás do limiar fixo e do Random Forest em disponibilidade.
+  classificadores Random Forest. Resultados preliminares (uma semente) mostram que o agente reage mais rápido (0,3~s), com custo desprezível no controlador, e, sobretudo redirecionando os atacantes, mantém a disponibilidade acima de 99\% sob inundações UDP e ICMP; sob inundação SYN, porém, restringe muitas origens legítimas e fica atrás do limiar fixo e do Random Forest.
 \end{resumo}
 
 % =====================================================================
@@ -712,14 +712,14 @@ cenários S1H, S4, S5 e S8.
 \section{Resultados}\label{sec:resultados}
 
 \textbf{Estado da avaliação.} Os resultados a seguir são \emph{preliminares}:
-correspondem às primeiras 40 das 270 rodadas da campanha principal (180~s por
-rodada, semente 1001), cobrindo os cenários S0--S2 para os seis métodos. Os
-cenários S3--S8 e as ablações ainda estão em execução. Com uma única semente
-por cenário, os intervalos de confiança refletem apenas a variação entre
-cenários, e os testes de Wilcoxon pareados (5 pares, correção de Holm) não
-atingem significância ($p_{\text{Holm}}=0{,}25$ em todas as comparações). O
-agente avaliado passou pelo ajuste fino no Mininet (12 episódios, $\epsilon=0{,}1$)
-com a recompensa baseada em efeito.
+correspondem às primeiras 48 das 270 rodadas da campanha principal (180~s por
+rodada, semente 1001), cobrindo os cenários S0--S2 e S3L para os seis
+métodos. Os demais cenários de ICMP, os cenários de adaptação (S4--S8) e as
+ablações ainda estão em execução. Com uma única semente, os intervalos de
+confiança refletem apenas a variação entre cenários, e os testes de Wilcoxon
+pareados com correção de Holm não atingem significância em nenhuma comparação.
+O agente avaliado passou pelo ajuste fino no Mininet (12 episódios,
+$\epsilon=0{,}1$) com a recompensa baseada em efeito.
 
 \subsection{Linha de base sem defesa e calibração}
 
@@ -732,10 +732,11 @@ quadrático da disponibilidade simulada para 0,0175.
 
 \begin{table}[ht]
 \centering
-\caption{Resultados preliminares no Mininet, média dos cenários S1L--S2M
+\caption{Resultados preliminares no Mininet, média dos cenários S1L--S3L
   (180~s, uma semente; $\pm$ meia-largura do IC 95\% por \textit{bootstrap}
-  entre cenários). TAB: tráfego de ataque descartado pela mitigação;
-  Legít.: fração de origens legítimas com ação restritiva.}
+  entre cenários). TAB: tráfego de ataque descartado por limitação ou
+  bloqueio (não inclui o redirecionado); Legít.: fração de origens legítimas
+  que receberam alguma ação restritiva.}
 \label{tab:res-eficacia}
 \footnotesize
 \begin{tabular}{@{}lccccc@{}}
@@ -743,28 +744,59 @@ quadrático da disponibilidade simulada para 0,0175.
 \textbf{Método} & \textbf{TAB (\%)} & \textbf{Legít. (\%)} &
 \textbf{Disp. (\%)} & \textbf{Lat. p95 (ms)} & \textbf{Reação (s)} \\
 \midrule
-B0 -- Sem defesa & 0,0 & 0,0 & 53,5 $\pm$ 31,7 & 1.027 & -- \\
-B1 -- Limiar fixo & 94,1 $\pm$ 0,8 & 0,0 & 86,4 $\pm$ 14,5 & 765 & 1,7 \\
-B2 -- Entropia & 94,0 $\pm$ 0,9 & 100,0 & 23,6 $\pm$ 7,8 & 1.085 & 1,7 \\
-B3 -- RF & 94,5 $\pm$ 0,5 & 4,2 $\pm$ 4,2 & 86,0 $\pm$ 14,8 & 756 & 1,1 \\
-B4 -- RF graduado & 95,0 $\pm$ 1,0 & 0,0 & 84,4 $\pm$ 16,8 & 526 & 1,2 \\
-Agente (proposto) & 55,5 $\pm$ 24,5 & 52,5 $\pm$ 30,0 & 54,5 $\pm$ 31,7 & 734 & 0,3 \\
+B0 -- Sem defesa & 0,0 & 0,0 & 65,0 $\pm$ 28,2 & 921 & -- \\
+B1 -- Limiar fixo & 94,2 $\pm$ 0,7 & 0,0 & 88,3 $\pm$ 12,9 & 673 & 1,7 \\
+B2 -- Entropia & 93,9 $\pm$ 0,8 & 100,0 & 24,0 $\pm$ 6,8 & 1.080 & 2,0 \\
+B3 -- RF & 94,6 $\pm$ 0,5 & 3,6 $\pm$ 3,6 & 88,0 $\pm$ 13,8 & 666 & 1,0 \\
+B4 -- RF graduado & 95,1 $\pm$ 0,7 & 0,0 & 88,9 $\pm$ 13,0 & 547 & 1,1 \\
+Agente (proposto) & 52,0 $\pm$ 22,5 & 41,1 $\pm$ 23,2 & 67,4 $\pm$ 24,9 & 562 & 0,3 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A Tabela~\ref{tab:res-eficacia} mostra que os \textit{baselines} B1, B3 e B4
-descartaram cerca de 94--95\% do tráfego de ataque, quase sem restringir
-usuários legítimos, e elevaram a disponibilidade média de 53,5\% para
-84--86\%. B2 (entropia) bloqueou todas as origens legítimas, efeito do limiar
-estimado sobre um tráfego normal de baixa entropia. O agente reagiu mais rápido
-que todos (0,3~s), mas teve o pior equilíbrio: restringiu em média 52,5\% das
-origens legítimas e mitigou só 55,5\% do ataque. O comportamento depende do
-tipo de ataque: no UDP (S2L e S2M) o agente manteve 100\% de disponibilidade com
-12\% de origens legítimas restritas, mas sob SYN (S1L--S1H) restringiu de 62\% a
-88\% delas, e a disponibilidade caiu para 20--32\%, abaixo até da linha sem
-defesa. Em S0, sem ataque, o agente restringiu 8\% das origens legítimas
-(disponibilidade de 99,2\%).
+\begin{table}[ht]
+\centering
+\caption{Agente por cenário no Mininet (uma semente). Tempo restr.: fração do
+  tempo de ataque em que as origens legítimas estiveram sob ação restritiva.}
+\label{tab:res-agente}
+\footnotesize
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Cenário} & \textbf{TAB (\%)} & \textbf{Legít. (\%)} &
+\textbf{Tempo restr. (\%)} & \textbf{Disp. agente (\%)} & \textbf{Disp. B0 (\%)} \\
+\midrule
+S0 (normal)   & --   & 8,3  & 1,8 & 99,2 & 100,0 \\
+S1L (SYN)     & 80,7 & 62,5 & 3,3 & 32,4 & 99,9 \\
+S1M (SYN)     & 93,7 & 87,5 & 9,3 & 20,5 & 93,7 \\
+S1H (SYN)     & 49,6 & 87,5 & 7,4 & 20,4 & 7,8 \\
+S2L (UDP)     & 39,6 & 12,5 & 0,7 & 99,6 & 99,9 \\
+S2M (UDP)     & 13,7 & 12,5 & 0,6 & 99,5 & 21,1 \\
+S2H (UDP)     & 7,3  & 12,5 & 0,6 & 99,6 & 1,9 \\
+S3L (ICMP)    & 79,6 & 12,5 & 0,6 & 99,7 & 99,9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Os \textit{baselines} B1, B3 e B4 descartaram cerca de 94--95\% do tráfego de
+ataque quase sem restringir usuários legítimos e elevaram a disponibilidade
+média de 65,0\% para cerca de 88\% (Tabela~\ref{tab:res-eficacia}). B2
+(entropia) restringiu todas as origens legítimas, efeito do limiar estimado
+sobre um tráfego normal de baixa entropia. O agente reagiu mais rápido que
+todos (0,3~s), mas, na média, ficou próximo da linha sem defesa.
+
+A média esconde dois comportamentos opostos (Tabela~\ref{tab:res-agente}).
+Sob UDP, o agente manteve 99,5--99,6\% de disponibilidade, inclusive em S2H,
+onde sem defesa ela cai para 1,9\%, embora a TAB tenha ficado entre 7\% e
+40\%. A diferença se explica pela ação escolhida: em cerca de 95\% dos
+intervalos de decisão sobre atacantes, o agente \emph{redirecionou} o tráfego
+para o nó de análise, que o retira do caminho da vítima mas não é contado como
+descarte pela TAB. Sob SYN, ao contrário, a disponibilidade caiu para
+20--32\%, abaixo da linha sem defesa em S1L e S1M. O agente restringiu, em
+algum momento, de 62\% a 88\% das origens legítimas, quase sempre com
+limitação de taxa e por pouco tempo (3--9\% do período de ataque); essa
+restrição curta, sozinha, não parece explicar a queda, cuja causa ainda está
+sendo investigada (ver Seção~\ref{sec:discussao}). Em S0, sem ataque, o agente
+restringiu 8\% das origens legítimas, mantendo 99,2\% de disponibilidade.
 
 \subsection{Adaptação e uso das ações (QP2 e QP3)}
 
@@ -794,9 +826,13 @@ B4 -- RF graduado & atacantes furtivos & 99,7\% & 0,3\% & 0\% & 0\% \\
 \end{tabular}
 \end{table}
 
-As ações intermediárias foram pouco usadas (cerca de 6\% das decisões sobre
-atacantes), e a ablação com apenas duas ações não foi inferior; a hipótese H3
-\emph{não} foi confirmada até aqui.
+No simulador, as ações intermediárias foram pouco usadas (cerca de 6\% das
+decisões sobre atacantes). No Mininet, depois do ajuste fino, o quadro se
+inverteu: o redirecionamento passou a ser a ação dominante sobre atacantes
+(cerca de 95\% das decisões) e a limitação, a única restrição frequente sobre
+legítimos. O ajuste fino, portanto, alterou de forma substancial a política,
+e as ações graduadas passaram a ser usadas; se esse uso traz vantagem (H3)
+depende das ablações, ainda em execução.
 
 \subsection{Custo no controlador (QP4)}
 
@@ -825,21 +861,25 @@ hipótese H4 foi confirmada.
 % =====================================================================
 \section{Discussão e Ameaças à Validade}\label{sec:discussao}
 
-\textbf{Discussão.} Os resultados preliminares são negativos para a hipótese
-principal: no Mininet, o agente reagiu mais rápido e custou pouco ao
-controlador, mas gerou muito mais falsos positivos que o limiar fixo e o RF,
-sobretudo sob inundação SYN, e não melhorou a disponibilidade (H1 e H2 não
-confirmadas até aqui). Duas causas são prováveis. Primeiro, a lacuna entre
-simulação e emulação: no simulador o agente não restringiu nenhuma origem
-legítima, mas sob SYN as conexões legítimas que não completam o
-\textit{handshake} alteram as \textit{features} (razão SYN/ACK, pacotes por
-fluxo) dos clientes de forma não reproduzida no simulador. Segundo, o ajuste
-fino foi curto (12 episódios) e com exploração ($\epsilon=0{,}1$), o que
-provavelmente reforçou ações restritivas aplicadas ao acaso a origens
-legítimas. Já no UDP, cujo efeito sobre os clientes é melhor modelado, o agente
-foi competitivo. Os \textit{baselines} supervisionados, por sua vez, mostram
-que as inundações do \texttt{hping3} são facilmente separáveis; nesse regime,
-bloquear rapidamente basta, e o espaço graduado praticamente não é usado.
+\textbf{Discussão.} Os resultados preliminares dependem do tipo de ataque.
+Contra inundações volumétricas (UDP e ICMP), o agente protegeu a vítima tão bem
+quanto os \textit{baselines}, reagiu mais rápido e afetou pouco os legítimos,
+preferindo redirecionar a bloquear. Contra inundação SYN, porém, foi pior que
+os \textit{baselines} e, em dois dos três níveis, pior que não defender (H1 e
+H2 não confirmadas até aqui). Três explicações são plausíveis e serão
+verificadas. (i) Redirecionar um SYN \textit{flood} protege menos que
+bloqueá-lo: as conexões semiabertas já acumuladas continuam ocupando a fila do
+servidor, e a recompensa por efeito trata redirecionamento e bloqueio de modo
+parecido. (ii) Lacuna entre simulação e emulação: sob SYN, as conexões
+legítimas que não completam o \textit{handshake} alteram as \textit{features}
+dos clientes (razão SYN/ACK, pacotes por fluxo) de forma não reproduzida no
+simulador, o que leva o agente a limitá-los. (iii) O ajuste fino foi curto
+(12 episódios) e com exploração ($\epsilon=0{,}1$), o que pode ter reforçado
+escolhas feitas ao acaso. A comparação também expõe uma limitação da TAB, que
+subestima a mitigação de quem redireciona; por isso a disponibilidade é a
+métrica principal desta análise. Por fim, os \textit{baselines}
+supervisionados mostram que as inundações do \texttt{hping3} são facilmente
+separáveis, de modo que bloquear rapidamente já é uma resposta muito boa.
 
 \textbf{Validade interna.} O agente foi treinado no simulador e ajustado com
 poucos episódios no Mininet. O Mininet compartilha a CPU da máquina hospedeira,
@@ -852,12 +892,15 @@ produção, ataques com falsificação de endereços (\textit{IP spoofing}) ou
 ataques à camada de aplicação, que estão fora do escopo.
 
 \textbf{Validade de construto.} A disponibilidade é medida por requisições
-HTTP com prazo fixo, e o falso positivo é definido no nível de origem; por
-isso são reportadas métricas complementares (latência e reação).
+HTTP com prazo fixo, e o falso positivo é definido no nível de origem: uma
+limitação breve conta tanto quanto um bloqueio longo, razão pela qual também se
+reporta a fração do tempo sob restrição. A TAB não conta o tráfego
+redirecionado.
 
-\textbf{Validade de conclusão.} Há uma única semente e só os cenários S0--S2;
-nenhuma diferença é estatisticamente significativa após a correção de Holm.
-As conclusões são indicativas e dependem da campanha completa, em execução.
+\textbf{Validade de conclusão.} Há uma única semente e só os cenários S0--S2 e
+S3L; nenhuma diferença é estatisticamente significativa após a correção de
+Holm. As conclusões são indicativas e dependem da campanha completa, em
+execução.
 
 \textbf{Aspectos éticos.} Todo tráfego de ataque é gerado em ambiente
 emulado e isolado, sem atingir redes ou serviços reais.
@@ -873,14 +916,17 @@ controlador os-ken com contadores por origem e sFlow, simulador calibrado com
 traços do Mininet, cinco \textit{baselines}, ajuste fino na emulação e
 \textit{scripts} reprodutíveis de experimento e análise -- foi construída sobre
 ferramentas abertas. Nos resultados preliminares, o agente foi o mais rápido
-(0,3~s) e teve custo desprezível no controlador, mas restringiu muitos usuários
-legítimos sob inundação SYN, ficando atrás do limiar fixo e do Random Forest
-em disponibilidade; no UDP foi competitivo.
+(0,3~s), teve custo desprezível no controlador e, contra inundações UDP e ICMP,
+manteve a disponibilidade acima de 99\% usando sobretudo o redirecionamento.
+Contra inundação SYN, porém, restringiu muitos usuários legítimos e ficou
+atrás do limiar fixo e do Random Forest, que tiveram o melhor desempenho geral.
 
-Como trabalhos futuros, destacam-se: concluir a campanha com três sementes e
-os cenários de adaptação (S3--S8) e ablações; reduzir a lacuna entre simulador
-e emulação modelando o efeito do SYN nas \textit{features} dos clientes
-legítimos; ajuste fino mais longo e sem exploração na avaliação; e estender a
+Como trabalhos futuros, destacam-se: concluir a campanha com três sementes, os
+cenários de adaptação (S4--S8) e as ablações; diagnosticar a queda sob SYN,
+diferenciando na recompensa o efeito do redirecionamento e do bloqueio sobre
+a fila de conexões; modelar no simulador o efeito do SYN sobre as
+\textit{features} dos clientes legítimos; fazer um ajuste fino mais longo;
+contabilizar o tráfego redirecionado na métrica de mitigação; e estender a
 proposta para múltiplos controladores e ataques com falsificação de endereços.
 
 \bibliographystyle{sbc}
