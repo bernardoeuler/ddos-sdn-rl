@@ -1,0 +1,4 @@
+scenario,mininet_availability,sim_default,sim_calibrated
+S1H,0.0782,0.0,0.0169
+S1L,0.999,0.0,1.0
+S1M,0.9369,0.0,1.0

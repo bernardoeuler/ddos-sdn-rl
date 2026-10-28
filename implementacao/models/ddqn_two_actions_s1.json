@@ -1,0 +1,47 @@
+{
+  "variant": "two_actions",
+  "seed": 1,
+  "updates": 160024,
+  "episodes": 447,
+  "train_s": 554.9,
+  "python": "3.14.4",
+  "agent_cfg": {
+    "dt_s": 1.0,
+    "window": 3,
+    "gamma": 0.95,
+    "lr": 0.0001,
+    "buffer_size": 100000,
+    "batch_size": 64,
+    "target_update": 1000,
+    "eps_start": 1.0,
+    "eps_end": 0.05,
+    "eps_decay_steps": 100000,
+    "hidden": [
+      128,
+      128
+    ],
+    "train_steps": 300000,
+    "block_s": 10,
+    "limit_frac": 0.1
+  },
+  "reward_cfg": {
+    "benefit": [
+      0.0,
+      0.6,
+      0.8,
+      1.0
+    ],
+    "harm": [
+      0.0,
+      0.2,
+      0.3,
+      1.0
+    ],
+    "w1": 1.0,
+    "w2": 2.0,
+    "w3": 0.5,
+    "w4": 0.5,
+    "w5": 0.05,
+    "w6": 0.3
+  }
+}

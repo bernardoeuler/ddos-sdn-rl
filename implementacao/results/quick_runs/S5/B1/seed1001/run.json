@@ -1,0 +1,10 @@
+{
+  "run_dir": "/root/ddosrl_runs/S5/B1/seed1001",
+  "policy": "B1",
+  "scenario": "S5",
+  "seed": 1001,
+  "attackers": [],
+  "epsilon": 0.0,
+  "model_dir": null,
+  "config": "/mnt/c/Users/berna/Projects/ufc/redes/artigo/implementacao/configs/default.yaml"
+}

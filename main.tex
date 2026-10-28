@@ -1,0 +1,895 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx,url}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit}
+
+\sloppy
+
+% Marcador para conteúdo que depende da implementação/experimentos
+\newcommand{\pend}{\textcolor{red}{\textit{[a preencher]}}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\title{Mitigação Adaptativa de Ataques DDoS em Redes Definidas\\
+  por Software com Aprendizado por Reforço}
+
+% Autoria omitida para revisão cega (anonimização exigida pelo evento)
+\author{Autores omitidos para revisão}
+
+\address{Instituição omitida para revisão
+  \email{omitido@omitido}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  In Software-Defined Networks (SDN), static DDoS defenses either block
+  legitimate users or react too slowly. This paper proposes a deep
+  reinforcement learning agent that, for each traffic source, chooses among
+  four graduated actions: allow, rate-limit (OpenFlow meters), redirect to an
+  analysis host, or temporarily block. The reward penalizes collateral damage
+  to legitimate users and the cost of each action. Built on Mininet, Open
+  vSwitch and Ryu, the agent will be compared with fixed thresholds, entropy
+  detection and Random Forest classifiers in terms of blocked attack traffic,
+  false positives, availability, latency, reaction time and controller
+  overhead.
+\end{abstract}
+
+\begin{resumo}
+  Em Redes Definidas por Software (SDN), defesas estáticas contra ataques DDoS
+  ou bloqueiam usuários legítimos ou reagem tarde demais. Este artigo propõe um
+  agente de aprendizado por reforço profundo que, para cada origem de tráfego,
+  escolhe entre quatro ações graduadas: permitir, limitar a taxa
+  (\textit{meters} OpenFlow), redirecionar para um nó de análise ou bloquear
+  temporariamente. A recompensa penaliza o dano colateral a usuários legítimos
+  e o custo de cada ação. Construído sobre Mininet, Open vSwitch e Ryu, o
+  agente será comparado a limiares fixos, detecção por entropia e
+  classificadores Random Forest quanto a ataque bloqueado, falsos positivos,
+  disponibilidade, latência, tempo de reação e sobrecarga no controlador.
+\end{resumo}
+
+% =====================================================================
+\section{Introdução}\label{sec:intro}
+
+Ataques distribuídos de negação de serviço (\textit{Distributed Denial of
+Service} -- DDoS) buscam esgotar recursos de rede ou de processamento de um
+alvo por meio de grande volume de tráfego originado de múltiplas fontes,
+tornando serviços indisponíveis a usuários legítimos
+\cite{mirkovic2004taxonomy}. Apesar de mais de duas décadas de pesquisa, a
+mitigação em tempo real permanece difícil porque o tráfego de ataque se mistura
+ao tráfego legítimo \cite{liu2018drl}.
+
+As Redes Definidas por Software (\textit{Software-Defined Networking} -- SDN)
+separam o plano de controle do plano de dados e oferecem ao controlador uma
+visão global da rede \cite{mckeown2008openflow,kreutz2015sdn}. Essa
+característica permite coletar estatísticas de fluxos e instalar regras de
+descarte, limitação de taxa ou redirecionamento de forma programática. Por outro
+lado, a própria SDN introduz novas superfícies de ataque, como a saturação do
+controlador por mensagens \textit{packet-in} e o esgotamento das tabelas de
+fluxo dos \textit{switches}
+\cite{yan2016sdnddos,albuquerque2023slowtcam}.
+
+\textbf{Problema.} Mecanismos de defesa baseados em regras fixas enfrentam um
+dilema: um limiar rígido bloqueia usuários legítimos em picos de demanda
+(\textit{flash crowds}), enquanto um limiar permissivo ou uma reação lenta
+permite a continuidade do ataque. Grande parte da literatura recente concentra-se
+na \emph{detecção} supervisionada, frequentemente com classificadores como
+Random Forest \cite{bahashwan2023slr,silva2024sbseg,dias2023microsservicos}, e
+trata a \emph{resposta} de forma secundária, muitas vezes como uma decisão
+binária de bloquear ou não.
+
+\textbf{Quem é afetado.} Usuários legítimos do serviço atacado, que sofrem
+indisponibilidade ou bloqueio indevido; operadores de rede, que precisam
+calibrar regras manualmente; e o próprio controlador SDN, que pode ser
+sobrecarregado durante o ataque.
+
+\textbf{Escopo.} Considera-se uma rede SDN de um único domínio, com um
+controlador e topologia em árvore emulada no Mininet, protegendo um servidor
+HTTP contra ataques volumétricos (\textit{SYN}, UDP e ICMP \textit{flood}),
+inclusive pulsados e multivetor. Ataques à camada de aplicação, ataques com
+falsificação de endereços de origem e cenários com múltiplos controladores
+ficam fora do escopo.
+
+\textbf{Objetivo geral.} Desenvolver e avaliar um agente de aprendizado por
+reforço (\textit{Reinforcement Learning} -- RL) que observe o tráfego em uma
+rede SDN e aprenda, para cada origem de tráfego, quando \emph{permitir},
+\emph{limitar a taxa}, \emph{redirecionar para análise} ou \emph{bloquear
+temporariamente}, reduzindo o ataque sem bloquear usuários legítimos.
+
+\textbf{Objetivos específicos.}
+\begin{enumerate}
+  \item Construir um ambiente emulado reprodutível com Mininet, Open vSwitch e
+        controlador Ryu, com geração automatizada de tráfego legítimo e de
+        ataque.
+  \item Formular a mitigação como um Processo de Decisão de Markov (MDP), com
+        estados, ações graduadas e recompensa que penaliza dano colateral.
+  \item Treinar um agente \textit{Double DQN} e integrá-lo ao controlador.
+  \item Comparar o agente com regras de limiar fixo, detecção por entropia e
+        detectores supervisionados, sob as mesmas condições, quanto a tráfego de ataque
+        bloqueado, falsos positivos, disponibilidade, latência, tempo de
+        reação e sobrecarga no controlador.
+\end{enumerate}
+
+\textbf{Contribuições pretendidas.} (i) Uma formulação de mitigação com
+\emph{espaço de ações graduado} de quatro níveis, aplicado por origem e com
+política compartilhada, que escala com o número de fontes; (ii) uma função de
+recompensa que equilibra explicitamente eficácia, dano a usuários legítimos e
+custo operacional das ações; (iii) uma avaliação que inclui cenários adversos
+não vistos no treinamento -- ataques pulsados, \textit{flash crowds} e enlaces
+com atraso e perda --, verificando se a resposta se adapta à intensidade do
+ataque e às condições da rede, e que mede a sobrecarga imposta ao controlador;
+e (iv) \textit{scripts} reprodutíveis sobre ferramentas abertas.
+
+O restante do artigo está organizado da seguinte forma: a
+Seção~\ref{sec:fund} apresenta a fundamentação; a Seção~\ref{sec:relacionados}
+discute os trabalhos relacionados; a Seção~\ref{sec:metodologia} descreve a
+metodologia; a Seção~\ref{sec:arquitetura} detalha a solução proposta; a
+Seção~\ref{sec:planejamento} apresenta o planejamento experimental; as
+Seções~\ref{sec:resultados} e~\ref{sec:discussao} trazem resultados, discussão e
+ameaças à validade; e a Seção~\ref{sec:conclusao} conclui o trabalho.
+
+% =====================================================================
+\section{Fundamentação}\label{sec:fund}
+
+\subsection{Redes Definidas por Software e OpenFlow}
+
+Em SDN, a lógica de controle é retirada dos equipamentos de encaminhamento e
+centralizada em um controlador, que programa os \textit{switches} por meio de
+uma interface padronizada, tipicamente o OpenFlow
+\cite{mckeown2008openflow,kreutz2015sdn}. Cada \textit{switch} mantém tabelas
+de fluxo cujas entradas possuem campos de casamento (por exemplo, endereços IP,
+portas e protocolo), prioridade, contadores e instruções. Na versão 1.3 do
+OpenFlow \cite{onf2012openflow13}, destacam-se três recursos usados neste
+trabalho:
+\begin{itemize}
+  \item \textbf{Contadores e estatísticas}: o controlador solicita
+        periodicamente estatísticas por fluxo e por porta
+        (\textit{FlowStats}/\textit{PortStats}), obtendo pacotes e bytes
+        acumulados.
+  \item \textbf{Temporizadores}: entradas podem expirar por inatividade
+        (\textit{idle\_timeout}) ou após um tempo fixo (\textit{hard\_timeout}),
+        o que permite bloqueios temporários que se desfazem automaticamente.
+  \item \textbf{Tabela de medidores (\textit{meters})}: um medidor com banda do
+        tipo \textit{drop} descarta pacotes que excedem uma taxa configurada,
+        implementando limitação de taxa por fluxo ou por origem.
+\end{itemize}
+O Open vSwitch (OVS) é um \textit{switch} virtual de código aberto com suporte a
+OpenFlow \cite{pfaff2015ovs}; o Mininet emula redes inteiras com
+\textit{hosts}, \textit{switches} e enlaces em uma única máquina
+\cite{lantz2010mininet}; e o Ryu é um arcabouço em Python para construção de
+controladores \cite{ryu}.
+
+\subsection{Ataques DDoS}
+
+Ataques DDoS podem ser classificados quanto ao recurso explorado e à dinâmica
+da taxa de envio \cite{mirkovic2004taxonomy}. Os ataques de inundação
+(\textit{flooding}) volumétricos mais comuns são: \textit{TCP SYN flood}, que
+esgota a fila de conexões semiabertas do servidor; \textit{UDP flood} e
+\textit{ICMP flood}, que saturam a banda do enlace da vítima. Em ataques de
+baixa taxa ou pulsados, o atacante alterna rajadas e silêncio para degradar o
+serviço evitando detectores baseados em médias \cite{kuzmanovic2003shrew}. Em
+SDN, há ainda ataques ao plano de controle: pacotes com cabeçalhos aleatórios
+geram \textit{packet-in} em excesso e sobrecarregam o controlador, ou preenchem
+a memória TCAM dos \textit{switches} \cite{yan2016sdnddos,albuquerque2023slowtcam}.
+
+Atributos clássicos para caracterizar tráfego de ataque incluem estatísticas
+de fluxo, como pacotes e bytes por fluxo, a proporção de fluxos sem resposta
+(assimetria entre ida e volta) e o crescimento do número de portas
+\cite{braga2010lightweight}, além da entropia dos endereços de destino, que cai
+quando o tráfego converge para uma vítima \cite{mousavi2015entropy}. Também são
+comuns a taxa de pacotes por origem, o tamanho médio dos pacotes e a proporção
+de segmentos SYN. Bases públicas como a
+CIC-DDoS2019 \cite{sharafaldin2019cicddos} e a InSDN \cite{elsayed2020insdn}
+são amplamente usadas para avaliar detectores.
+
+\subsection{Aprendizado por Reforço}
+
+No RL, um agente interage com um ambiente modelado como um MDP
+$(\mathcal{S},\mathcal{A},P,R,\gamma)$: em cada passo $t$ ele observa o estado
+$s_t$, executa a ação $a_t$, recebe a recompensa $r_t$ e o ambiente transita
+para $s_{t+1}$ \cite{sutton2018rl}. O objetivo é aprender uma política $\pi$ que
+maximize o retorno descontado $G_t=\sum_{k\ge 0}\gamma^k r_{t+k}$. O
+\textit{Q-learning} estima a função ação-valor $Q(s,a)$ por diferenças
+temporais \cite{watkins1992qlearning}. A \textit{Deep Q-Network} (DQN) aproxima
+$Q$ com uma rede neural, utilizando memória de repetição e rede-alvo
+\cite{mnih2015dqn}. O \textit{Double DQN} reduz a superestimação dos valores ao
+separar a seleção da ação da sua avaliação \cite{vanhasselt2016ddqn}, e a
+arquitetura \textit{dueling} decompõe $Q$ em valor do estado e vantagem da ação
+\cite{wang2016dueling}. Métodos de gradiente de política, como o PPO
+\cite{schulman2017ppo}, são alternativas para espaços de ação maiores.
+
+\subsection{Termos técnicos adotados}
+
+\begin{itemize}
+  \item \textbf{Origem}: endereço IP de origem observado na borda da rede; é a
+        unidade sobre a qual o agente decide.
+  \item \textbf{Intervalo de decisão ($\Delta t$)}: período entre duas coletas
+        de estatísticas e, portanto, entre duas decisões do agente.
+  \item \textbf{Ação restritiva}: limitar, redirecionar ou bloquear uma origem.
+  \item \textbf{Falso positivo}: ação restritiva aplicada a uma origem
+        legítima.
+  \item \textbf{Dano colateral}: tráfego legítimo perdido, atrasado ou
+        rejeitado em consequência das ações de mitigação.
+\end{itemize}
+
+% =====================================================================
+\section{Trabalhos Relacionados}\label{sec:relacionados}
+
+\textbf{Detecção supervisionada em SDN.} Revisões sistemáticas recentes mostram
+que a maior parte dos trabalhos sobre DDoS em SDN trata de detecção com
+aprendizado de máquina e aprendizado profundo, com abordagens de classificador
+único, híbridas e de \textit{ensemble} \cite{bahashwan2023slr,tebbaa2025slr}. No contexto nacional,
+\cite{silva2024sbseg} avaliam cinco algoritmos na base CIC-DDoS2019, com
+destaque para o Random Forest, e \cite{dias2023microsservicos} propõem uma
+arquitetura de microsserviços para detecção em SDN que permite usar modelos
+mais complexos sem prejudicar o desempenho do controlador. Esses trabalhos
+alcançam alta acurácia, mas a resposta ao ataque não é o foco, e a decisão
+resultante costuma ser binária. Trabalhos anteriores à popularização do
+aprendizado profundo já exploravam mapas auto-organizáveis
+\cite{braga2010lightweight} e entropia de endereços de destino \cite{mousavi2015entropy}
+para detecção leve no controlador.
+
+\textbf{RL para resposta a DDoS.} \cite{malialis2013throttling} propõem o
+\textit{Multiagent Router Throttling}, em que roteadores a montante aprendem a
+limitar o tráfego destinado à vítima, com extensão posterior voltada à
+escalabilidade para um número maior de agentes \cite{malialis2015distributed}.
+\cite{liu2018drl} aplicam DRL em SDN para aprender políticas de limitação
+contra inundações SYN, UDP e ICMP, superando um método de \textit{router
+throttling}. O
+\textit{DeepThrottle} usa DRL para ajustar a limitação em SDN, aumentando a
+fração de tráfego normal que chega ao servidor em cenários de ataque não vistos
+\cite{chen2022deepthrottle}, e \cite{shen2023fast} propõem recompensa com
+punição adaptativa e alocação de banda para preservar tráfego normal em
+SDN-IoT. \cite{feng2020applayer} tratam ataques na camada de aplicação com uma
+recompensa multiobjetivo: o agente mitiga agressivamente quando o servidor está
+sobrecarregado, mesmo sacrificando algumas requisições legítimas, e de forma
+conservadora nos demais casos, para minimizar o dano colateral -- uma ideia de
+resposta proporcional próxima da investigada aqui, porém fora do contexto de
+SDN. \cite{yungaicela2022slowrate} combinam um IDS baseado em
+aprendizado profundo com um IPS baseado em DRL contra ataques de baixa taxa em
+Mininet e ONOS, estendendo a abordagem com NFV e defesa de alvo móvel
+\cite{yungaicela2023sdnnfv}. \cite{khozam2024qos} empregam DRL para mitigar
+inundações ICMP, SYN e UDP preservando QoS em SDN para 5G, e o
+\textit{QoSentry}, dos mesmos autores, utiliza \textit{Double DQN} com
+contramedidas adaptáveis, como limitação e redirecionamento de tráfego, e
+recompensa orientada à qualidade de serviço percebida por usuários legítimos
+(latência e \textit{jitter}) \cite{khozam2025qosentry}. Por fim, o
+\textit{MininetGym} oferece um ambiente modular baseado em Mininet para treinar
+agentes DQN, PPO e A2C em cenários de segurança \cite{finistrella2025mininetgym}.
+
+A Tabela~\ref{tab:comparativo} sintetiza os trabalhos mais próximos.
+
+\begin{table}[ht]
+\centering
+\caption{Quadro comparativo dos trabalhos relacionados (n.i.: não informado no
+  material consultado; n.a.: não se aplica).}
+\label{tab:comparativo}
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{2.0cm}p{1.5cm}YYYp{1.2cm}@{}}
+\toprule
+\textbf{Trabalho} & \textbf{Técnica} & \textbf{Ações de resposta} &
+\textbf{Ambiente / base} & \textbf{Métricas principais} & \textbf{Custo no controlador} \\
+\midrule
+\cite{malialis2013throttling,malialis2015distributed} & RL multiagente & Limitação em roteadores a montante & Simulação (não SDN) & Tráfego legítimo que alcança o servidor & Não \\
+\cite{liu2018drl} & DRL & Limitação de tráfego & SDN; SYN, UDP e ICMP & Desempenho frente a \textit{router throttling} & n.i. \\
+\cite{feng2020applayer} & RL & Mitigação de requisições (camada 7) & Servidor web (não SDN) & Mensagens maliciosas mitigadas; dano colateral & Não \\
+\cite{yungaicela2022slowrate} & DL + DRL & Mitigação de fluxos de baixa taxa & Mininet + ONOS & Taxa de detecção; sucesso da mitigação & Parcial (amostragem de fluxos) \\
+\cite{chen2022deepthrottle} & DRL & Limitação de tráfego & SDN & Tráfego normal entregue; carga do servidor & n.i. \\
+\cite{shen2023fast} & DRL & Limitação + alocação de banda & SDN-IoT & Tráfego normal encaminhado; convergência & n.i. \\
+\cite{khozam2024qos,khozam2025qosentry} & Double DQN & Limitação e redirecionamento & SDN (5G); SYN, UDP e ICMP & QoS de usuários legítimos (latência, \textit{jitter}) & n.i. \\
+\cite{silva2024sbseg} & Supervisionado (RF e outros) & Somente detecção & CIC-DDoS2019 & Acurácia, F1 & n.a. \\
+\cite{dias2023microsservicos} & Supervisionado (RF e outros) & Somente detecção & SDN com microsserviços & F1; desempenho do controlador & Parcial \\
+\midrule
+\textbf{Este trabalho} & Double DQN & Permitir, limitar (\textit{meter}), redirecionar, bloquear temporariamente & Mininet + OVS + Ryu & Ataque bloqueado, falsos positivos, disponibilidade, latência, reação & Sim \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Lacuna.} Nos trabalhos analisados, a resposta aprendida é, em geral,
+\emph{unidimensional} (um grau de limitação) ou binária (bloquear ou não); a
+exceção mais próxima é o \textit{QoSentry} \cite{khozam2025qosentry}, que
+combina limitação e redirecionamento. Ainda assim, poucos estudos reúnem, em
+uma mesma avaliação, (i) um conjunto de ações de
+naturezas diferentes -- limitação, redirecionamento para inspeção e bloqueio
+reversível --, (ii) cenários projetados para provocar falsos positivos, como
+\textit{flash crowds} legítimos, e (iii) a medição do custo que a própria
+política impõe ao controlador. Este trabalho não pretende reproduzir uma
+abordagem existente; ele investiga se um espaço de ações graduado, com custos
+explícitos por ação, produz respostas proporcionais à intensidade do ataque e
+reduz o dano colateral em relação a regras fixas e a detectores
+supervisionados.
+
+% =====================================================================
+\section{Metodologia}\label{sec:metodologia}
+
+O trabalho segue uma metodologia experimental em etapas, alinhada ao protocolo
+proposto para a disciplina:
+\begin{enumerate}
+  \item \textbf{Delimitação}: definição do problema (mitigação de DDoS
+        volumétrico contra um serviço HTTP em uma rede SDN de um único
+        domínio), do escopo e das contribuições (Seção~\ref{sec:intro}).
+  \item \textbf{Fundamentação e revisão}: estudo de SDN/OpenFlow, ataques DDoS
+        e RL, e levantamento de trabalhos por meio de buscadores acadêmicos e
+        de metadados (Crossref, Semantic Scholar) cobrindo publicações da IEEE,
+        ACM, Elsevier, Springer, AAAI e da SOL/SBC (SBRC, SBSeg, WGRS), com as
+        palavras-chave
+        \textit{DDoS}, \textit{SDN}, \textit{reinforcement learning},
+        \textit{mitigation} e equivalentes em português, priorizando o período
+        2018--2026 (Seções~\ref{sec:fund} e~\ref{sec:relacionados}).
+  \item \textbf{Planejamento}: formulação de questões de pesquisa, hipóteses,
+        \textit{baselines}, métricas e cenários (Seção~\ref{sec:planejamento}).
+  \item \textbf{Ambiente e dados}: construção da topologia emulada, coleta
+        automatizada de tráfego rotulado, produzido de forma autorizada em
+        ambiente isolado, e automação do registro de \textit{logs} e métricas. A base CIC-DDoS2019 \cite{sharafaldin2019cicddos} é
+        usada apenas para validar o conjunto de atributos e o
+        \textit{baseline} supervisionado.
+  \item \textbf{Implementação-base}: controlador com monitoramento, regras de
+        limiar fixo e detector supervisionado; testes unitários do
+        \textit{pipeline} de atributos e pequenos experimentos de integração.
+  \item \textbf{Método proposto}: implementação do ambiente de treinamento, do
+        agente e da sua integração com o controlador, com registro de
+        hiperparâmetros e auditoria de cada decisão.
+  \item \textbf{Experimentos e análise}: execução de todos os métodos nas
+        mesmas condições, com repetições, preservação dos dados brutos e testes
+        estatísticos.
+\end{enumerate}
+
+\textbf{Ambiente computacional.} Os experimentos foram executados em Ubuntu
+26.04 sobre WSL2 (núcleo 6.18, Windows 10, 12 núcleos lógicos e 8~GB de RAM),
+com Mininet~2.3.0, Open vSwitch~3.7.1 (OpenFlow~1.3, \textit{datapath} do
+núcleo), os-ken~4.2.2 -- o \textit{fork} mantido do Ryu \cite{ryu}, de API
+compatível, adotado porque o Ryu~4.34 não é mantido desde 2020 e é
+incompatível com Python recente --, Python~3.14, PyTorch~2.14, Gymnasium~1.4
+\cite{towers2025gymnasium} e scikit-learn~1.9. O núcleo do WSL2 já inclui
+como módulos o \texttt{openvswitch} e as disciplinas de fila usadas pelo
+Mininet (HTB, \textit{netem}, TBF), dispensando recompilação. Os ataques foram
+gerados com \texttt{hping3}, que atinge taxas de milhares de pacotes por segundo
+com menor custo de CPU que geradores em Python como o Scapy \cite{scapy}. Todos
+os parâmetros e sementes estão em um arquivo de configuração versionado junto
+ao código.
+
+% =====================================================================
+\section{Arquitetura e Solução Proposta}\label{sec:arquitetura}
+
+\subsection{Visão geral da arquitetura}
+
+A Figura~\ref{fig:arquitetura} apresenta a arquitetura. O plano de dados,
+emulado no Mininet, contém clientes legítimos, atacantes, \textit{switches} OVS,
+o servidor-vítima (HTTP) e um nó de análise. No plano de controle, a aplicação
+Ryu é composta por quatro módulos: (i) \textbf{monitor}, que coleta
+\textit{FlowStats}, \textit{PortStats} e amostras sFlow a cada $\Delta t$; (ii)
+\textbf{extrator de atributos}, que agrega as estatísticas por origem; (iii)
+\textbf{agente}, que escolhe uma ação para cada origem ativa; e (iv)
+\textbf{atuador}, que traduz a ação em mensagens OpenFlow. Toda decisão é
+registrada com estado observado, valores $Q$ e ação escolhida, permitindo
+auditoria \textit{a posteriori}. Para explicar as decisões, será calculada a
+importância de cada atributo por permutação sobre esses registros, medindo
+quanto a ação escolhida muda quando o atributo é embaralhado.
+
+\textbf{Coleta de atributos.} Contadores OpenFlow fornecem apenas pacotes e
+bytes por regra. Por isso, a tabela~0 de cada \textit{switch} de borda mantém
+uma entrada por endereço ativo como origem e outra como destino, que contam o
+tráfego e recebem as ações de mitigação, seguidas do encaminhamento na
+tabela~1. Atributos que dependem de cabeçalhos (proporção de SYN, portas de
+destino distintas e entropia de endereços) são obtidos por amostragem sFlow,
+suportada nativamente pelo OVS, com um coletor integrado ao controlador.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  bloco/.style={draw, rounded corners, align=center, minimum height=0.9cm, text width=2.3cm},
+  seta/.style={-{Stealth[length=2mm]}, thick}
+]
+  % Plano de controle
+  \node[bloco] (mon)   at (0,0)   {Monitor de\\estatísticas};
+  \node[bloco] (feat)  at (3.2,0) {Extrator de\\atributos};
+  \node[bloco] (agent) at (6.4,0) {Agente\\Double DQN};
+  \node[bloco] (act)   at (9.6,0) {Atuador de\\políticas};
+  \draw[seta] (mon) -- (feat);
+  \draw[seta] (feat) -- node[above]{$o_t^i$} (agent);
+  \draw[seta] (agent) -- node[above]{$a_t^i$} (act);
+  \node[draw, dashed, inner sep=6pt, fit=(mon)(feat)(agent)(act),
+        label={[font=\footnotesize\bfseries]above:Controlador Ryu (plano de controle)}] {};
+
+  % Plano de dados
+  \node[bloco] (hosts) at (0,-3.4)   {Clientes legítimos\\e atacantes};
+  \node[bloco] (ovs)   at (4.8,-3.4) {\textit{Switches} OVS\\(OpenFlow 1.3)};
+  \node[bloco] (vit)   at (9.6,-2.8) {Servidor-vítima\\(HTTP)};
+  \node[bloco] (anl)   at (9.6,-4.1) {Nó de\\análise};
+  \draw[thick] (hosts) -- (ovs);
+  \draw[thick] (ovs) -- (vit.west);
+  \draw[thick, dashed] (ovs) -- node[below, sloped]{\scriptsize redirecionar} (anl.west);
+  \node[draw, dashed, inner sep=6pt, fit=(hosts)(ovs)(vit)(anl),
+        label={[font=\footnotesize\bfseries]below:Mininet (plano de dados)}] {};
+
+  % Interação controle-dados
+  \draw[seta] (ovs.north west) -- node[left, align=center]{\scriptsize contadores\\\scriptsize OpenFlow e sFlow} (mon.south);
+  \draw[seta] (act.south) -- node[right, align=center]{\scriptsize \textit{FlowMod}\\\scriptsize \textit{MeterMod}} (ovs.north east);
+\end{tikzpicture}
+\caption{Arquitetura da solução proposta.}
+\label{fig:arquitetura}
+\end{figure}
+
+\subsection{Topologia}
+
+A topologia base é uma árvore de dois níveis: um \textit{switch} de núcleo
+conectado ao servidor-vítima, ao nó de análise e a um \textit{host} de
+monitoramento, e três \textit{switches} de borda com quatro \textit{hosts}
+cada. Entre os 12 \textit{hosts}, a proporção
+entre legítimos e atacantes varia por cenário. Os enlaces são configurados com
+\texttt{TCLink} (100~Mbit/s, 0{,}5~ms, filas de 100 pacotes), e o enlace da
+vítima é o gargalo (10~Mbit/s), para que o ataque produza degradação
+mensurável dentro da capacidade de uma única máquina. O servidor HTTP entrega
+um arquivo de 20~KB e foi configurado sem \textit{SYN cookies}, com fila de
+1.024 conexões semiabertas e duas retransmissões de SYN-ACK, de modo que uma
+inundação SYN ocupa a fila por cerca de 7~s. Um dos clientes legítimos, quando
+sorteado, faz \textit{upload} contínuo de 2~Mbit/s com \texttt{iperf3},
+representando tráfego legítimo de alta taxa. Como os \textit{hosts} são conhecidos, as regras de
+encaminhamento e as entradas de contagem por endereço são instaladas de forma
+proativa, e uma regra de menor prioridade envia ao controlador apenas o
+tráfego de endereços desconhecidos. Assim, o controlador não depende de
+\textit{packet-in} a cada novo fluxo.
+
+\subsection{Formulação como MDP}
+
+A decisão é tomada \emph{por origem}, com uma única política compartilhada por
+todas as origens ativas. Essa escolha mantém a dimensão do estado fixa,
+independentemente do número de \textit{hosts}, e permite reutilizar a
+experiência de todas as origens durante o treinamento.
+
+\textbf{Estado.} Para cada origem $i$ no intervalo $t$, a observação é
+\begin{equation}
+  o_t^i = \left[\, x_t^i \;\|\; g_t \;\|\; \mathrm{onehot}(a_{t-1}^i) \;\|\; \tau_t^i \,\right],
+\end{equation}
+em que $\|$ denota concatenação; $x_t^i$ reúne atributos locais normalizados (taxa de pacotes e de bytes,
+tamanho médio de pacote, proporção de SYN, número estimado de conexões
+distintas, número de portas de destino distintas e razão entre tráfego recebido e enviado pela
+origem); $g_t$ reúne atributos globais (utilização do enlace da vítima,
+latência de sondas enviadas ao servidor por um \textit{host} de monitoramento,
+entropia dos IPs de origem calculada pelos contadores de pacotes, taxa de
+\textit{packet-in} no controlador e ocupação do nó de análise);
+$a_{t-1}^i$ é a ação vigente; e $\tau_t^i$ é o tempo desde a última mudança de
+ação. Atributos são calculados sobre janelas deslizantes de alguns intervalos
+para capturar ataques pulsados.
+
+\textbf{Ações.} O conjunto $\mathcal{A}=\{a_0,a_1,a_2,a_3\}$ é graduado
+(Tabela~\ref{tab:acoes}). O bloqueio usa \textit{hard\_timeout}, de modo que
+um erro do agente se desfaz automaticamente; o redirecionamento envia o tráfego
+a um nó de análise com capacidade limitada (enlace de 5~Mbit/s), um roteador
+Linux que aplica limitação por origem com o módulo \textit{hashlimit} do
+\textit{iptables} (100 pacotes/s por origem) e encaminha o tráfego aprovado ao
+servidor com latência adicional. Soluções com estado, como o SYNPROXY, foram
+descartadas porque exigiriam caminho simétrico, e as respostas do servidor
+retornam diretamente aos clientes.
+
+\begin{table}[ht]
+\centering
+\caption{Ações do agente e sua implementação em OpenFlow 1.3.}
+\label{tab:acoes}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}YY@{}}
+\toprule
+\textbf{Ação} & \textbf{Implementação} & \textbf{Custo / efeito colateral} \\
+\midrule
+$a_0$: permitir & Remove regras restritivas da origem; encaminhamento normal & Nenhum, mas o ataque prossegue se a origem for maliciosa \\
+$a_1$: limitar a taxa & \textit{FlowMod} com instrução \texttt{meter} e banda \textit{drop} de taxa $r_{\mathrm{lim}}$ & Usuário legítimo limitado sofre perda parcial \\
+$a_2$: redirecionar & \textit{FlowMod} que reescreve o MAC de destino e envia o tráfego pela porta do nó de análise & Latência adicional; capacidade de análise limitada \\
+$a_3$: bloquear temporariamente & \textit{FlowMod} de descarte com \textit{hard\_timeout} $T_b$ & Usuário legítimo bloqueado fica indisponível por $T_b$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Recompensa.} A recompensa da origem $i$ combina um termo local e um
+termo global compartilhado:
+\begin{equation}
+  r_t^i = \underbrace{w_1\,\mathbf{1}[i \in \mathcal{M}]\,b(a_t^i)
+          - w_2\,\mathbf{1}[i \in \mathcal{L}]\,h(a_t^i)}_{\text{local}}
+          + \underbrace{w_3\,D_t - w_4\,U^{\mathrm{atq}}_t}_{\text{global}}
+          - w_5\,c(a_t^i,a_{t-1}^i),
+  \label{eq:recompensa}
+\end{equation}
+em que $\mathcal{M}$ e $\mathcal{L}$ são os conjuntos de origens maliciosas e
+legítimas (conhecidos apenas no ambiente de treinamento); $b$ é o benefício de
+aplicar a ação a um atacante, medido pelo efeito real (fração do seu tráfego
+efetivamente mitigada no intervalo, de modo que limitar um atacante que já
+envia abaixo de $r_{\mathrm{lim}}$ não rende recompensa), e $h$ é o dano a um
+usuário legítimo, $h=\max(h_0(a),\,\text{fração do tráfego afetada})$, com piso
+$h_0=(0;\,0{,}2;\,0{,}3;\,1)$ para (permitir, limitar, redirecionar, bloquear).
+No treinamento, 30\% dos episódios têm atacantes de baixa taxa (3\% a 25\% da
+nominal) e 30\% dos clientes legítimos têm taxa até quatro vezes maior, para
+criar origens ambíguas.
+Separar $b$ e $h$ é necessário: com uma única severidade $\rho(a)$ multiplicando
+ambos os termos, o valor esperado local seria linear em $\rho$ e o ótimo seria
+sempre uma ação extrema; com $h$ convexo, as ações intermediárias passam a ser
+ótimas quando a origem é ambígua (por exemplo, com probabilidade de ataque
+0{,}5, limitar ou redirecionar supera permitir e bloquear);
+$D_t$ é a disponibilidade do serviço no intervalo (fração de requisições
+legítimas atendidas dentro do prazo); $U^{\mathrm{atq}}_t$ é a fração da
+capacidade do enlace da vítima ocupada por tráfego de ataque; e $c(\cdot)$
+modela o custo operacional de instalar ou trocar regras, desestimulando
+oscilações. Com $w_2 > w_1$, um falso positivo custa mais que o benefício de
+restringir um atacante, refletindo o objetivo de não bloquear usuários
+legítimos. Os rótulos são usados apenas para compor a recompensa no
+treinamento; em operação, o agente decide somente a partir de $o_t^i$. Uma
+variante sem rótulos, que usa apenas os termos globais observáveis, será
+avaliada como ablação.
+
+\subsection{Agente e treinamento}
+
+O agente principal é um \textit{Double DQN} \cite{vanhasselt2016ddqn} com
+arquitetura \textit{dueling} \cite{wang2016dueling}: uma rede de duas camadas
+ocultas de 128 neurônios (ReLU), otimizador Adam, memória de repetição e
+política $\varepsilon$-gulosa, implementado em PyTorch. Como o bloqueio trava
+a origem por $T_b$ intervalos, cada transição vai de uma decisão da origem até
+a sua próxima decisão, $k$ intervalos depois, com recompensa descontada
+acumulada e alvo $r + \gamma^k \max_{a'} Q(s',a')$ (formulação
+semi-Markoviana). Para o controlador, os pesos são exportados e a inferência é
+feita em \textit{numpy}, sem dependência de bibliotecas de aprendizado
+profundo. Os hiperparâmetros utilizados estão na Tabela~\ref{tab:hiper}.
+
+\begin{table}[ht]
+\centering
+\caption{Hiperparâmetros do agente.}
+\label{tab:hiper}
+\footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parâmetro} & \textbf{Valor} \\
+\midrule
+Intervalo de decisão $\Delta t$ & 1~s \\
+Fator de desconto $\gamma$ & 0{,}95 \\
+Taxa de aprendizado & $10^{-4}$ \\
+Memória de repetição / lote & $10^{5}$ transições / 64 \\
+Atualização da rede-alvo & a cada 1.000 passos \\
+$\varepsilon$ (exploração) & 1{,}0 $\rightarrow$ 0{,}05 em 100.000 passos \\
+Passos de gradiente (simulador) & 300.000 \\
+Bloqueio temporário $T_b$ & 10~s \\
+Taxa de limitação $r_{\mathrm{lim}}$ & 10\% da capacidade do gargalo (1~Mbit/s) \\
+Pesos da recompensa $w_1,\dots,w_5$ & 1; 2; 0{,}5; 0{,}5; 0{,}05 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Como cada passo no Mininet ocorre em tempo real ($\Delta t = 1$~s), treinar
+exclusivamente na emulação seria lento. Por isso, o treinamento ocorre em duas
+fases: (i) um ambiente Gymnasium \cite{towers2025gymnasium} que simula, em
+modelo de fluidos, as origens, o enlace gargalo, os medidores e o nó de
+análise, com aleatorização de intensidade, número de atacantes e perfis
+legítimos; e (ii) ajuste fino com episódios no próprio Mininet, com
+exploração $\varepsilon=0{,}1$, reconstruindo as transições a partir dos
+registros de decisão do controlador. O simulador é calibrado com execuções sem
+defesa (B0) no Mininet: a taxa efetiva do gerador de ataque, os tamanhos de
+pacote e as razões de resposta são estimados diretamente dos atributos
+observados, e os parâmetros de dinâmica (tamanho e tempo de permanência da fila
+de conexões semiabertas e sensibilidade à perda no gargalo) são escolhidos por
+busca em grade, minimizando o erro da disponibilidade sem defesa por cenário. Ambas as fases usam apenas os cenários de treinamento
+(S0--S3, Tabela~\ref{tab:cenarios}), assim como a escolha dos pesos da
+recompensa e dos limiares dos \textit{baselines}. A avaliação final é feita
+\emph{somente} no Mininet. Ambientes
+como o MininetGym \cite{finistrella2025mininetgym} serão considerados como
+referência para a integração.
+
+\subsection{Baselines}
+
+\begin{itemize}
+  \item \textbf{B0 -- Sem defesa}: encaminhamento normal.
+  \item \textbf{B1 -- Limiar fixo}: bloqueia temporariamente uma origem cuja
+        taxa de pacotes excede um limiar calibrado no cenário normal.
+  \item \textbf{B2 -- Entropia}: detecção por queda da entropia, seguida de
+        bloqueio temporário das origens cuja participação no tráfego excede
+        $1/N$. \cite{mousavi2015entropy} usam a entropia dos endereços de
+        destino; como nesta topologia todo o tráfego converge para um único
+        servidor, adotou-se a entropia das \emph{origens} do tráfego destinado
+        à vítima, com limiar no percentil 1 do cenário normal.
+  \item \textbf{B3 -- Supervisionado}: Random Forest \cite{breiman2001rf}
+        treinado com os mesmos atributos $x_t^i$ e tráfego rotulado coletado
+        nos cenários de treinamento; bloqueia quando a probabilidade de ataque
+        excede 0{,}5.
+  \item \textbf{B4 -- Supervisionado graduado}: o mesmo Random Forest, com
+        faixas de probabilidade mapeadas para as quatro ações. Esse
+        \textit{baseline} isola o efeito do RL em relação ao simples uso de
+        ações graduadas.
+\end{itemize}
+
+% =====================================================================
+\section{Planejamento Experimental}\label{sec:planejamento}
+
+\subsection{Questões de pesquisa e hipóteses}
+
+\begin{description}
+  \item[QP1 (eficácia).] O agente reduz o tráfego de ataque que alcança a
+        vítima com menos falsos positivos que os \textit{baselines} B1--B4?
+        \textit{H1: o agente atinge taxa de bloqueio de ataque comparável à de
+        B3 com taxa de falsos positivos significativamente menor que B1 e B3.}
+  \item[QP2 (adaptação).] A política mantém o desempenho sob padrões de
+        tráfego e condições de rede não vistos no treinamento (ataques
+        pulsados, \textit{flash crowds}, ataques multivetor e enlaces com
+        atraso e perda)? \textit{H2: a degradação de disponibilidade do agente
+        nesses cenários é menor que a dos limiares fixos.}
+  \item[QP3 (ações graduadas).] Qual é o ganho do espaço de quatro ações em
+        relação a um agente com apenas \{permitir, bloquear\}?
+        \textit{H3: o espaço graduado reduz o dano colateral sem aumentar o
+        tempo de reação.}
+  \item[QP4 (custo).] Qual é o tempo de reação e a sobrecarga que o agente
+        impõe ao controlador? \textit{H4: o ciclo de decisão (coleta,
+        inferência e instalação de regras) permanece abaixo de $\Delta t$, e o
+        tempo de reação é de poucos intervalos de decisão, comparável ao de
+        B1.}
+\end{description}
+
+\subsection{Cenários}
+
+A Tabela~\ref{tab:cenarios} descreve os cenários. O tráfego legítimo é gerado
+por clientes HTTP com chegadas de Poisson, tráfego de fundo com
+\texttt{iperf} e sondas ICMP de latência; os ataques são gerados com Scapy e
+\texttt{hping3}. Cada execução dura 180~s: 30~s de aquecimento, 120~s de
+ataque e 30~s de recuperação. Cenários marcados como \textit{não vistos} não
+são usados no treinamento.
+
+\begin{table}[ht]
+\centering
+\caption{Cenários experimentais.}
+\label{tab:cenarios}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.9cm}p{3.6cm}Yp{1.6cm}@{}}
+\toprule
+\textbf{Id} & \textbf{Cenário} & \textbf{Descrição} & \textbf{Treino?} \\
+\midrule
+S0 & Normal & Apenas tráfego legítimo (mede falsos positivos de base) & Sim \\
+S1 & \textit{SYN flood} & 3 intensidades (baixa, média, alta), 2 a 4 atacantes & Sim \\
+S2 & \textit{UDP flood} & 3 intensidades & Sim \\
+S3 & \textit{ICMP flood} & 3 intensidades & Sim \\
+S4 & Ataque pulsado & Rajadas \textit{on-off} de UDP/SYN (baixa taxa média) & Não \\
+S5 & \textit{Flash crowd} & Aumento abrupto de clientes legítimos, sem ataque & Não \\
+S6 & Multivetor & SYN + UDP simultâneos, com mais atacantes que no treino & Não \\
+S7 & Rede degradada & \textit{SYN flood} de intensidade média com 20~ms de atraso e 1\% de perda nos enlaces de borda (\texttt{netem}) & Não \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Métricas}
+
+Seja $B^{\mathrm{atq}}_{\mathrm{env}}$ o volume de ataque enviado e
+$B^{\mathrm{atq}}_{\mathrm{mit}}$ o volume de ataque descartado pelas regras de
+mitigação (medidores, regras de descarte e nó de análise), obtido dos
+contadores dessas regras. Descartes causados apenas pelo congestionamento do
+gargalo não contam como mitigação. As métricas são:
+\begin{itemize}
+  \item \textbf{Taxa de ataque bloqueado}:
+        $\mathrm{TAB} = B^{\mathrm{atq}}_{\mathrm{mit}} / B^{\mathrm{atq}}_{\mathrm{env}}$.
+  \item \textbf{Usuários legítimos bloqueados (falsos positivos)}: fração de
+        origens legítimas que receberam ação restritiva em algum intervalo, e
+        fração do tempo em que permaneceram restritas, reportando
+        separadamente limitação/bloqueio e redirecionamento, já que este último
+        apenas acrescenta latência.
+  \item \textbf{Disponibilidade}: fração de requisições HTTP legítimas
+        concluídas com sucesso em até 2~s.
+  \item \textbf{Latência e perda}: tempo de resposta HTTP (mediana e p95),
+        RTT das sondas e perda de pacotes legítimos.
+  \item \textbf{Tempo de reação}: intervalo entre o início do ataque e a
+        primeira ação restritiva efetiva sobre cada atacante; e tempo até a
+        disponibilidade voltar a 95\% do valor medido no cenário S0.
+  \item \textbf{Sobrecarga no controlador}: uso de CPU e memória do processo
+        do controlador, mensagens OpenFlow por segundo (\textit{FlowMod},
+        \textit{MeterMod}, estatísticas), tempo de inferência por decisão e
+        número de regras instaladas.
+\end{itemize}
+
+\subsection{Repetições e controle de variáveis}
+
+Cada combinação de método e cenário será executada 10 vezes com sementes
+distintas e fixadas, reiniciando a rede entre execuções; todos os métodos usam
+as mesmas sementes, topologia, perfis de tráfego e intervalo de coleta. Os
+resultados serão reportados como média e intervalo de confiança de 95\%
+(\textit{bootstrap}). Para comparar o agente com cada \textit{baseline}, será
+aplicado o teste de postos sinalizados de Wilcoxon pareado por semente, com
+correção de Holm para comparações múltiplas. Todos os resultados, inclusive os
+desfavoráveis, serão reportados, e os dados brutos (estatísticas, \textit{logs}
+de decisão e capturas) serão preservados. Com seis métodos, 14 configurações de
+cenário (S1--S3 em três intensidades cada) e execuções de 3~min, a campanha
+principal soma cerca de 42~horas de emulação, executadas em lote por
+\textit{scripts}; as ablações serão restritas aos cenários S1 (alta
+intensidade), S4 e S5.
+
+% =====================================================================
+\section{Resultados}\label{sec:resultados}
+
+\textbf{Estado da avaliação.} Os resultados a seguir são \emph{preliminares}.
+A campanha completa (180~s por rodada, várias sementes) não foi concluída a
+tempo; foram executadas (i) rodadas sem defesa de 180~s nos cenários S0--S1,
+usadas na calibração; (ii) rodadas curtas no Mininet (60~s, com 35~s de
+ataque, uma semente) para B1, B3 e o agente nos cenários S1H, S2H e S5; e
+(iii) a avaliação de todas as políticas no simulador calibrado (3 sementes por
+cenário). Não há, portanto, intervalos de confiança nem testes estatísticos, e
+as diferenças pequenas não devem ser interpretadas como significativas. O
+ajuste fino no Mininet não foi executado; o agente avaliado foi treinado apenas
+no simulador (160.000 passos de gradiente).
+
+\subsection{Linha de base sem defesa e calibração}
+
+Sem defesa (B0, 180~s), a disponibilidade do servidor foi de 100\% em S0,
+99,9\% em S1L, 93,7\% em S1M e 7,8\% em S1H: a inundação SYN de alta
+intensidade esgota a fila de conexões semiabertas. Com esses traços, a
+calibração reduziu o erro quadrático da disponibilidade simulada de 1,87 para
+0,008 nos cenários S1, ajustando a fila para persistência de cerca de 5~s.
+
+\subsection{Eficácia e dano colateral no Mininet (QP1)}
+
+\begin{table}[ht]
+\centering
+\caption{Rodadas curtas no Mininet (60~s, uma semente). TAB: tráfego de
+  ataque descartado pelas regras de mitigação; Legít.: fração de origens
+  legítimas que receberam ação restritiva.}
+\label{tab:res-eficacia}
+\footnotesize
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+\textbf{Cenário} & \textbf{Método} & \textbf{TAB (\%)} & \textbf{Legít. (\%)} &
+\textbf{Disp. (\%)} & \textbf{Lat. p95 (ms)} & \textbf{Reação (s)} \\
+\midrule
+S1H (SYN alto) & B1 -- Limiar fixo & 90,6 & 0 & 45,3 & 1.095 & 1,74 \\
+               & B3 -- RF          & 94,7 & 0 & 42,9 & 1.118 & 0,77 \\
+               & Agente            & 95,2 & 25 & 45,3 & 1.076 & 1,21 \\
+\midrule
+S2H (UDP alto) & B1 -- Limiar fixo & 95,0 & 0 & 100,0 & 1.067 & 0,62 \\
+               & B3 -- RF          & 91,6 & 0 & 98,5 & 1.054 & 1,77 \\
+               & Agente            & 95,7 & 0 & 100,0 & 1.062 & 0,35 \\
+\midrule
+S5 (\textit{flash crowd}) & B1 -- Limiar fixo & -- & 0 & 37,6 & 1.885 & -- \\
+               & B3 -- RF          & -- & 0 & 36,0 & 1.877 & -- \\
+               & Agente            & -- & 0 & 38,0 & 1.887 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Tabela~\ref{tab:res-eficacia} mostra que o agente descartou a maior fração
+do tráfego de ataque nos dois cenários de inundação (95,2\% e 95,7\%) e reagiu
+mais rápido que os \textit{baselines} no UDP (0,35~s contra 0,62~s e 1,77~s).
+Em disponibilidade, porém, os três métodos ficaram praticamente empatados. No
+SYN alto, a disponibilidade de cerca de 45\% é limitada pela própria fila SYN
+do servidor, que permanece cheia por segundos depois do bloqueio, e a cada
+expiração do bloqueio temporário o ataque volta a enchê-la. Nesse cenário, o
+agente aplicou restrições leves (5 intervalos de limitação e 5 de
+redirecionamento, sem bloqueios) a 25\% das origens legítimas. No
+\textit{flash crowd} nenhum método restringiu usuários legítimos; a queda de
+disponibilidade decorre da sobrecarga do próprio servidor e não da defesa.
+
+\subsection{Adaptação e uso das ações (QP2 e QP3)}
+
+No simulador calibrado, o agente, B1 e B3 obtiveram disponibilidade entre
+97,9\% e 100\% em todos os cenários, sem falsos positivos; no ataque pulsado
+(S4) os três ficaram em 93,5\%, enquanto o agente restrito a
+\{permitir, bloquear\} atingiu 100\%. A Tabela~\ref{tab:res-acoes} mostra a
+distribuição das ações no simulador com origens ambíguas.
+
+\begin{table}[ht]
+\centering
+\caption{Distribuição das ações durante o ataque no simulador com atacantes
+  furtivos (40 episódios).}
+\label{tab:res-acoes}
+\footnotesize
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Política} & \textbf{Origens} & \textbf{Permitir} & \textbf{Limitar} &
+\textbf{Redirecionar} & \textbf{Bloquear} \\
+\midrule
+Agente (4 ações) & atacantes comuns   & 9,5\% & 2,7\% & 3,6\% & 84,3\% \\
+                 & atacantes furtivos & 12,1\% & 0\% & 6,9\% & 81,0\% \\
+                 & legítimas          & 100\% & 0\% & 0\% & 0\% \\
+Agente \{permitir, bloquear\} & atacantes furtivos & 13,5\% & -- & -- & 86,5\% \\
+B4 -- RF graduado & atacantes furtivos & 99,7\% & 0,3\% & 0\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Os agentes identificaram atacantes de baixa taxa que o RF graduado deixou
+passar; essa comparação, contudo, não é justa, pois o RF foi treinado sem
+atacantes furtivos. As ações intermediárias foram pouco usadas (cerca de 6\%
+das decisões sobre atacantes), e a ablação com apenas duas ações não foi
+inferior. Assim, a hipótese H3 \emph{não} foi confirmada nestes experimentos.
+
+\subsection{Custo no controlador (QP4)}
+
+\begin{table}[ht]
+\centering
+\caption{Custo no controlador nas rodadas curtas (média de S1H, S2H e S5).}
+\label{tab:res-custo}
+\footnotesize
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Método} & \textbf{CPU do controlador (\%)} & \textbf{Decisão por ciclo (ms)} \\
+\midrule
+B1 -- Limiar fixo & 1,2 & 0,10 \\
+B3 -- RF          & 4,5 & 34,7 \\
+Agente            & 1,1 & 0,30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O ciclo de decisão do agente (inferência em \textit{numpy} e instalação de
+regras) levou cerca de 0,3~ms, mais de três ordens de grandeza abaixo de
+$\Delta t=1$~s, com uso de CPU equivalente ao do limiar fixo. O Random Forest
+foi o mais custoso: cerca de 35~ms por ciclo e quatro vezes mais CPU. A
+hipótese H4 foi confirmada.
+
+% =====================================================================
+\section{Discussão e Ameaças à Validade}\label{sec:discussao}
+
+\textbf{Discussão.} Nos cenários avaliados, o agente foi tão eficaz quanto os
+\textit{baselines} (QP1), mitigou um pouco mais de tráfego de ataque, reagiu
+mais rápido no UDP e teve custo computacional baixo (QP4). Não foi observada,
+porém, vantagem em disponibilidade, e as ações graduadas praticamente não foram
+usadas (QP3). A explicação mais provável é que as inundações geradas pelo
+\texttt{hping3} são facilmente separáveis do tráfego legítimo; nesse regime,
+bloquear rapidamente é a resposta ótima, e um classificador ou mesmo um limiar
+fixo bem calibrado já a obtém. O espaço graduado só tende a trazer ganho com
+origens realmente ambíguas, como ataques de baixa taxa e clientes legítimos
+intensos, cenário que precisa ser incluído na avaliação no Mininet. Por fim, a
+disponibilidade sob SYN de alta intensidade é dominada pela fila SYN do
+servidor: o bloqueio temporário de 10~s permite que cada retomada do ataque a
+encha novamente, o que sugere avaliar bloqueios mais longos ou
+\textit{SYN cookies}.
+
+\textbf{Validade interna.} O agente foi treinado só no simulador; a calibração
+usou apenas cenários SYN (as rodadas de UDP e ICMP foram interrompidas) e o
+ajuste fino no Mininet não foi executado. O Mininet compartilha a CPU da
+máquina hospedeira, o que pode afetar latência e custo; os métodos foram
+executados nas mesmas condições. A recompensa usa rótulos disponíveis apenas
+na emulação.
+
+\textbf{Validade externa.} A topologia é pequena, há um único controlador e o
+tráfego é sintético; os resultados podem não se generalizar para redes de
+produção, ataques com falsificação de endereços (\textit{IP spoofing}) -- que
+dificultam a decisão por origem -- ou ataques à camada de aplicação, que estão
+fora do escopo.
+
+\textbf{Validade de construto.} A disponibilidade é medida por requisições
+HTTP com prazo fixo, e o falso positivo é definido no nível de origem; outras
+definições poderiam levar a conclusões diferentes, razão pela qual são
+reportadas métricas complementares (latência e reação).
+
+\textbf{Validade de conclusão.} Os resultados vêm de uma única semente e de
+rodadas encurtadas, sem testes estatísticos. As conclusões são indicativas e
+dependem da campanha completa, já automatizada no código.
+
+\textbf{Aspectos éticos.} Todo tráfego de ataque é gerado em ambiente
+emulado e isolado, sem atingir redes ou serviços reais.
+
+% =====================================================================
+\section{Conclusão}\label{sec:conclusao}
+
+Este trabalho propôs e implementou um agente de aprendizado por reforço
+profundo (Double Dueling DQN) para mitigação adaptativa de ataques DDoS em SDN,
+que escolhe, para cada origem de tráfego, entre permitir, limitar a taxa,
+redirecionar para análise ou bloquear temporariamente. A solução completa --
+controlador os-ken com contadores por origem e sFlow, simulador calibrado com
+traços do Mininet, cinco \textit{baselines} e \textit{scripts} reprodutíveis de
+experimento e análise -- foi construída sobre ferramentas abertas. Nos
+experimentos preliminares, o agente igualou ou superou ligeiramente os
+\textit{baselines} em tráfego de ataque mitigado e tempo de reação, com custo
+desprezível no controlador, mas não melhorou a disponibilidade nem fez uso
+relevante das ações graduadas, que não se mostraram necessárias diante de
+inundações facilmente separáveis.
+
+Como trabalhos futuros, destacam-se: concluir a campanha estatística completa;
+avaliar no Mininet cenários com origens ambíguas, em que a resposta graduada
+pode ser vantajosa, com o RF treinado nas mesmas condições; executar o ajuste
+fino no Mininet; e estender a proposta para múltiplos controladores e ataques
+com falsificação de endereços.
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}

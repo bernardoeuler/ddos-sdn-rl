@@ -1,0 +1,90 @@
+# Configuração padrão do projeto (versões, sementes e parâmetros registrados aqui).
+# Valores correspondem às Tabelas 2-4 do artigo (main.tex).
+
+network:
+  n_hosts: 12              # 3 switches de borda x 4 hosts
+  edge_switches: 3
+  hosts_per_edge: 4
+  host_bw_mbps: 100        # enlaces host-borda
+  uplink_bw_mbps: 100      # enlaces borda-núcleo
+  victim_bw_mbps: 10       # gargalo (enlace núcleo-vítima)
+  analysis_bw_mbps: 5      # enlace núcleo-nó de análise
+  link_delay_ms: 0.5
+  max_queue_pkts: 100
+  victim_ip: 10.0.0.100
+  analysis_ip: 10.0.0.101
+  monitor_ip: 10.0.0.102
+  http_file_kb: 20
+
+agent:
+  dt_s: 1.0                # intervalo de decisão
+  window: 3                # janelas (intervalos) para atributos
+  gamma: 0.95
+  lr: 1.0e-4
+  buffer_size: 100000
+  batch_size: 64
+  target_update: 1000
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 100000
+  hidden: [128, 128]
+  train_steps: 300000      # passos de gradiente no simulador
+  block_s: 10              # T_b (bloqueio temporário com hard_timeout)
+  limit_frac: 0.10         # r_lim = 10% da capacidade do gargalo
+
+reward:
+  # benefício b(a) ao restringir atacante e dano h(a) ao restringir legítimo
+  # por ação [permitir, limitar, redirecionar, bloquear]
+  benefit: [0.0, 0.6, 0.8, 1.0]
+  harm:    [0.0, 0.2, 0.3, 1.0]
+  w1: 1.0     # benefício local (atacante restringido)
+  w2: 2.0     # penalidade local (legítimo restringido); w2 > w1
+  w3: 0.5     # disponibilidade global
+  w4: 0.5     # utilização do enlace da vítima por ataque
+  w5: 0.05    # custo de trocar a ação (instalar/remover regras)
+  w6: 0.3     # (somente variante sem rótulos) penalidade por restrição
+
+analysis_node:
+  per_source_pps: 100      # hashlimit por origem no nó de análise
+
+sflow:
+  sampling: 64
+  port: 6343
+  header_bytes: 128
+
+experiment:
+  duration_s: 180
+  warmup_s: 30
+  attack_s: 120
+  repetitions: 10
+  base_seed: 1000
+  http_timeout_s: 2.0
+  legit_rate_rps: 2.0      # requisições/s por cliente legítimo (Poisson)
+  flash_crowd_factor: 5.0
+  bulk_mbps: 2.0           # um cliente legítimo faz upload contínuo (iperf3)
+
+scenarios:
+  S0:  {type: normal, train: true}
+  S1L: {type: syn,  intensity: low,  attackers: [2, 4], train: true}
+  S1M: {type: syn,  intensity: med,  attackers: [2, 4], train: true}
+  S1H: {type: syn,  intensity: high, attackers: [2, 4], train: true}
+  S2L: {type: udp,  intensity: low,  attackers: [2, 4], train: true}
+  S2M: {type: udp,  intensity: med,  attackers: [2, 4], train: true}
+  S2H: {type: udp,  intensity: high, attackers: [2, 4], train: true}
+  S3L: {type: icmp, intensity: low,  attackers: [2, 4], train: true}
+  S3M: {type: icmp, intensity: med,  attackers: [2, 4], train: true}
+  S3H: {type: icmp, intensity: high, attackers: [2, 4], train: true}
+  S4:  {type: pulse, intensity: high, attackers: [2, 4], on_s: 5, off_s: 10, train: false}
+  S5:  {type: flash, train: false}
+  S6:  {type: multi, intensity: med, attackers: [5, 6], train: false}
+  S7:  {type: syn,  intensity: med, attackers: [2, 4], degraded: {delay_ms: 20, loss_pct: 1}, train: false}
+
+# pacotes por segundo por atacante, por intensidade (hping3 -i u<1e6/pps>)
+attack_pps:
+  low: 500
+  med: 2000
+  high: 8000
+attack_payload:
+  syn: 0
+  udp: 512
+  icmp: 56
