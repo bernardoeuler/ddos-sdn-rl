@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pipeline completo após as rodadas de calibração (executar como root no WSL).
+# Pipeline completo após as rodadas de calibração (executar como root).
 #   bash scripts/pipeline.sh [SEMENTES...]   (padrão: 1 2 3)
 set -u
 cd "$(dirname "$0")/.."

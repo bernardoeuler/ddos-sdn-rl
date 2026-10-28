@@ -1,6 +1,6 @@
 """Executa uma rodada (método x cenário x semente) no Mininet e calcula métricas.
 
-Precisa de root (Mininet/OVS). Exemplo, no Ubuntu do WSL:
+Precisa de root (Mininet/OVS). Exemplo, como root:
   /opt/ddosrl-venv/bin/python scripts/run_experiment.py --policy DQN --scenario S1H --seed 1
 
 Saída: results/runs/<cenário>/<política>/seed<k>/ com decisions.jsonl,

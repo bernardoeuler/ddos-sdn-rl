@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Campanha principal + ablações + análise (executar como root no WSL).
+# Campanha principal + ablações + análise (executar como root).
 set -u
 cd "$(dirname "$0")/.."
 PY=/opt/ddosrl-venv/bin/python

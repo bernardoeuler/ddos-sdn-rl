@@ -21,12 +21,12 @@ scripts/                    treino, calibração, experimentos, campanha, análi
 tests/                      testes unitários (pytest) e teste de fumaça do OVS
 ```
 
-## Ambiente (Windows + WSL2)
+## Ambiente (Linux)
 
-O kernel 6.x do WSL2 já traz `openvswitch`, `sch_htb`, `sch_netem` e `sch_tbf` como módulos. Preparação, como root no Ubuntu:
+O ambiente precisa de um kernel com os módulos `openvswitch`, `sch_htb`, `sch_netem` e `sch_tbf`; os kernels padrão do Ubuntu e do Debian os incluem. Preparação, como root:
 
 ```bash
-wsl -d Ubuntu -u root -- bash setup_wsl.sh
+sudo bash setup.sh
 ```
 
 O script instala Mininet 2.3, OVS 3.x, hping3 e iperf3, e cria o venv `/opt/ddosrl-venv` com torch (CPU), os-ken, scikit-learn e gymnasium. Os experimentos exigem root.
@@ -35,7 +35,7 @@ O os-ken 4.x não traz mais o `osken-manager` nem os apps de exemplo. Por isso h
 
 ## Pipeline
 
-Todos os comandos rodam a partir desta pasta, com `PY=/opt/ddosrl-venv/bin/python`, como root no WSL.
+Todos os comandos rodam a partir desta pasta, com `PY=/opt/ddosrl-venv/bin/python`, como root.
 
 | Etapa | Comando |
 |---|---|

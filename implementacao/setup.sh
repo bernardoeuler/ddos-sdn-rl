@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Prepara o Ubuntu (WSL2) para os experimentos. Executar como root:
-#   wsl -d Ubuntu -u root -- bash setup_wsl.sh
+# Prepara uma máquina Linux (Ubuntu/Debian) para os experimentos. Executar como root:
+#   sudo bash setup.sh
 set -euo pipefail
 
 VENV=/opt/ddosrl-venv
@@ -12,9 +12,10 @@ if ! command -v mn >/dev/null || ! command -v ovs-vsctl >/dev/null; then
     python3-pip python3-dev tcpdump net-tools curl iptables
 fi
 
-# O kernel 6.x do WSL2 traz openvswitch e as qdiscs como módulos.
+# módulos do kernel usados pelo OVS e pelo TCLink do Mininet
 modprobe -a openvswitch sch_htb sch_netem sch_tbf
-service openvswitch-switch start || /usr/share/openvswitch/scripts/ovs-ctl start
+systemctl start openvswitch-switch 2>/dev/null || service openvswitch-switch start \
+  || /usr/share/openvswitch/scripts/ovs-ctl start
 
 # venv com acesso ao pacote mininet do sistema (python3-mininet)
 if [ ! -x "$VENV/bin/python" ]; then

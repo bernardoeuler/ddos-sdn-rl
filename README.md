@@ -53,7 +53,7 @@ A discussão completa e as ameaças à validade estão nas Seções 7 e 8 do art
 main.tex, referencias.bib, sbc-template.sty, sbc.bst   artigo (modelo SBC)
 notas-pesquisa.md                                       fichamento e decisões técnicas
 implementacao/
-  setup_wsl.sh            instala Mininet, OVS, hping3, iperf3 e o venv Python
+  setup.sh                instala Mininet, OVS, hping3, iperf3 e o venv Python
   configs/default.yaml    todos os parâmetros (rede, agente, recompensa, cenários)
   configs/sim_calibration.json   parâmetros do simulador calibrados no Mininet
   ddosrl/                 pacote: atributos, simulador, agente, baselines, controlador SDN
@@ -67,37 +67,38 @@ Detalhes de implementação estão em [`implementacao/README.md`](implementacao/
 
 ## Requisitos
 
-- **Linux com root.** No Windows, use o **WSL2 com Ubuntu**; o kernel 6.x do WSL já inclui os módulos `openvswitch`, `sch_htb` e `sch_netem`. Também serve uma VM ou máquina Ubuntu.
-- Cerca de 4 GB livres (o venv com torch CPU ocupa a maior parte) e de preferência 4 ou mais núcleos.
-- Acesso à internet para instalar os pacotes.
+- **Linux com acesso root**, de preferência Ubuntu 22.04+ ou Debian 12+. O `setup.sh` usa `apt`; em outras distribuições, instale os pacotes equivalentes manualmente.
+- **Kernel com os módulos** `openvswitch`, `sch_htb`, `sch_netem` e `sch_tbf`. Os kernels padrão do Ubuntu e do Debian já os incluem. Confira com `modinfo openvswitch`.
+- **Python 3.10 ou superior.**
+- **Recursos:** cerca de 4 GB livres (o venv com torch CPU ocupa a maior parte) e de preferência 4 ou mais núcleos.
+- **Acesso à internet** para instalar os pacotes.
+
+Uma VM com Ubuntu também serve.
 
 ## 1. Instalação
 
-No Windows, abra o terminal e entre no Ubuntu como root:
+Clone o repositório e rode o script de instalação como root:
 
 ```bash
-wsl -d Ubuntu -u root
-```
-
-Dentro do Ubuntu, a partir da pasta do projeto (no WSL, `C:\` fica em `/mnt/c/`):
-
-```bash
-cd implementacao
-bash setup_wsl.sh
+git clone git@github.com:bernardoeuler/ddos-sdn-rl.git
+cd ddos-sdn-rl/implementacao
+sudo bash setup.sh
 ```
 
 O script instala `mininet`, `openvswitch-switch`, `hping3` e `iperf3`, e carrega os módulos do kernel. Também cria o venv `/opt/ddosrl-venv`, com torch CPU, os-ken, scikit-learn e gymnasium. Ao final ele imprime as versões e `SETUP_OK`.
 
-Nos comandos seguintes, considere:
+O Mininet e o OVS exigem root. Por isso, todos os comandos a seguir rodam como root, a partir da pasta `implementacao/`:
 
 ```bash
+sudo -i
+cd /caminho/para/ddos-sdn-rl/implementacao
 PY=/opt/ddosrl-venv/bin/python
 ```
 
-Depois de reiniciar o WSL, recarregue os módulos e o OVS antes de rodar experimentos:
+Depois de reiniciar a máquina, se o OVS não subir sozinho:
 
 ```bash
-modprobe -a openvswitch sch_htb sch_netem sch_tbf && service openvswitch-switch start
+modprobe -a openvswitch sch_htb sch_netem sch_tbf && systemctl start openvswitch-switch
 ```
 
 ## 2. Testes
@@ -196,7 +197,8 @@ $PY scripts/finetune_agent.py --episodes 12
 | `Unable to contact the remote controller` no início | Normal: o controlador leva cerca de 1 s para subir e o OVS reconecta sozinho. |
 | `sch_htb: quantum of class ... is big` | Aviso inofensivo do TCLink. |
 | `controlador não ficou pronto` | Veja `controller.log` na pasta da rodada (`/root/ddosrl_runs/...`) e rode `mn -c`. |
-| `modprobe: module openvswitch not found` | O kernel não traz o módulo: use a VM Ubuntu ou recompile o kernel do WSL. |
+| `modprobe: module openvswitch not found` | O kernel não traz o módulo: instale `linux-modules-extra-$(uname -r)` (Ubuntu) ou use um kernel que inclua `CONFIG_OPENVSWITCH`. |
+| Ambiente WSL2 | Funciona como foi usado no artigo: o kernel 6.x do WSL já traz os módulos; rode como root (`wsl -u root`). |
 | Rodada interrompida deixou lixo | `mn -c; pkill -f launch_controller; pkill hping3` |
 
 O os-ken 4.x não inclui `osken-manager`. Por isso o controlador sobe pelo lançador próprio, `python -m ddosrl.sdn.launch_controller`, e os scripts já cuidam disso.
