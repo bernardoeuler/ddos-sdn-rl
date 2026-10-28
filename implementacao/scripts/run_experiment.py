@@ -45,9 +45,11 @@ def assign_roles(cfg, scen_name, seed):
     types = {}
     for k, h in enumerate(attackers):
         t = sc["type"]
-        types[h] = ["syn", "udp"][k % 2] if t in ("pulse", "multi") else t
+        types[h] = ["syn", "udp"][k % 2] if t in ("pulse", "multi", "stealth") else t
     rand_ports = {h: bool(rng.random() < 0.5) for h in attackers}
     pps = {h: cfg["attack_pps"][sc["intensity"]] * float(rng.uniform(0.6, 1.4)) for h in attackers}
+    if sc["type"] == "stealth":                 # atacantes furtivos: 3-25% da taxa baixa
+        pps = {h: v * float(rng.uniform(0.03, 0.25)) for h, v in pps.items()}
     return attackers, bulk, types, rand_ports, pps
 
 
@@ -176,6 +178,8 @@ def run(policy, scen_name, seed, cfg, out_root, epsilon=0.0, model_dir=None, qui
                                       "-t", str(int(ex["duration_s"]) + 2)], stdout=subprocess.DEVNULL))
                 continue
             rate = ex["legit_rate_rps"] * float(rng.uniform(0.5, 1.5))
+            if sc["type"] == "stealth" and rng.random() < 0.3:   # cliente legítimo intenso
+                rate *= float(rng.uniform(1.0, 4.0))
             procs.append(h.popen([PY, "-m", "ddosrl.sdn.traffic", "http", "--url", url, "--rate", f"{rate:.3f}",
                                   "--timeout", str(ex["http_timeout_s"]), "--until", str(t_end),
                                   "--seed", str(seed * 100 + L["hosts"][name]["index"]),

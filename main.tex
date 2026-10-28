@@ -22,12 +22,9 @@
 \title{Mitigação Adaptativa de Ataques DDoS em Redes Definidas\\
   por Software com Aprendizado por Reforço}
 
-% Autoria omitida para revisão cega (anonimização exigida pelo evento)
-\author{Autores omitidos para revisão}
+\author{Bernardo Euler Barbosa Santos (567068)\inst{1}\\ Renato Rogério Barros Martins (561497)\inst{1}}
 
-\address{Instituição omitida para revisão
-  \email{omitido@omitido}
-}
+\address{Universidade Federal do Ceará (UFC) -- Fortaleza, CE -- Brasil}
 
 \begin{document}
 
@@ -39,11 +36,11 @@
   reinforcement learning agent that, for each traffic source, chooses among
   four graduated actions: allow, rate-limit (OpenFlow meters), redirect to an
   analysis host, or temporarily block. The reward penalizes collateral damage
-  to legitimate users and the cost of each action. Built on Mininet, Open
-  vSwitch and Ryu, the agent will be compared with fixed thresholds, entropy
-  detection and Random Forest classifiers in terms of blocked attack traffic,
-  false positives, availability, latency, reaction time and controller
-  overhead.
+  to legitimate users and the cost of each action. The agent was implemented
+  on Mininet, Open vSwitch and os-ken (a maintained Ryu fork), trained in a
+  simulator calibrated with emulation traces, and compared with fixed
+  thresholds, entropy detection and Random Forest classifiers.
+  \textcolor{red}{[resultados finais]}
 \end{abstract}
 
 \begin{resumo}
@@ -53,10 +50,10 @@
   escolhe entre quatro ações graduadas: permitir, limitar a taxa
   (\textit{meters} OpenFlow), redirecionar para um nó de análise ou bloquear
   temporariamente. A recompensa penaliza o dano colateral a usuários legítimos
-  e o custo de cada ação. Construído sobre Mininet, Open vSwitch e Ryu, o
-  agente será comparado a limiares fixos, detecção por entropia e
-  classificadores Random Forest quanto a ataque bloqueado, falsos positivos,
-  disponibilidade, latência, tempo de reação e sobrecarga no controlador.
+  e o custo de cada ação. O agente foi implementado sobre Mininet, Open vSwitch
+  e os-ken (\textit{fork} mantido do Ryu), treinado em um simulador calibrado
+  com traços da emulação e comparado a limiares fixos, detecção por entropia e
+  classificadores Random Forest. \textcolor{red}{[resultados finais]}
 \end{resumo}
 
 % =====================================================================
@@ -110,8 +107,8 @@ temporariamente}, reduzindo o ataque sem bloquear usuários legítimos.
 \textbf{Objetivos específicos.}
 \begin{enumerate}
   \item Construir um ambiente emulado reprodutível com Mininet, Open vSwitch e
-        controlador Ryu, com geração automatizada de tráfego legítimo e de
-        ataque.
+        controlador os-ken (\textit{fork} mantido do Ryu), com geração
+        automatizada de tráfego legítimo e de ataque.
   \item Formular a mitigação como um Processo de Decisão de Markov (MDP), com
         estados, ações graduadas e recompensa que penaliza dano colateral.
   \item Treinar um agente \textit{Double DQN} e integrá-lo ao controlador.
@@ -121,7 +118,7 @@ temporariamente}, reduzindo o ataque sem bloquear usuários legítimos.
         reação e sobrecarga no controlador.
 \end{enumerate}
 
-\textbf{Contribuições pretendidas.} (i) Uma formulação de mitigação com
+\textbf{Contribuições.} (i) Uma formulação de mitigação com
 \emph{espaço de ações graduado} de quatro níveis, aplicado por origem e com
 política compartilhada, que escala com o número de fontes; (ii) uma função de
 recompensa que equilibra explicitamente eficácia, dano a usuários legítimos e
@@ -129,7 +126,9 @@ custo operacional das ações; (iii) uma avaliação que inclui cenários advers
 não vistos no treinamento -- ataques pulsados, \textit{flash crowds} e enlaces
 com atraso e perda --, verificando se a resposta se adapta à intensidade do
 ataque e às condições da rede, e que mede a sobrecarga imposta ao controlador;
-e (iv) \textit{scripts} reprodutíveis sobre ferramentas abertas.
+e (iv) uma implementação aberta e reprodutível -- controlador, simulador
+calibrado, agente, \textit{baselines} e \textit{scripts} de experimento --,
+disponível no repositório do projeto.
 
 O restante do artigo está organizado da seguinte forma: a
 Seção~\ref{sec:fund} apresenta a fundamentação; a Seção~\ref{sec:relacionados}
@@ -276,22 +275,22 @@ A Tabela~\ref{tab:comparativo} sintetiza os trabalhos mais próximos.
   material consultado; n.a.: não se aplica).}
 \label{tab:comparativo}
 \scriptsize
-\begin{tabularx}{\textwidth}{@{}p{2.0cm}p{1.5cm}YYYp{1.2cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{1.5cm}YYY>{\raggedright\arraybackslash}p{1.3cm}@{}}
 \toprule
 \textbf{Trabalho} & \textbf{Técnica} & \textbf{Ações de resposta} &
 \textbf{Ambiente / base} & \textbf{Métricas principais} & \textbf{Custo no controlador} \\
 \midrule
-\cite{malialis2013throttling,malialis2015distributed} & RL multiagente & Limitação em roteadores a montante & Simulação (não SDN) & Tráfego legítimo que alcança o servidor & Não \\
-\cite{liu2018drl} & DRL & Limitação de tráfego & SDN; SYN, UDP e ICMP & Desempenho frente a \textit{router throttling} & n.i. \\
-\cite{feng2020applayer} & RL & Mitigação de requisições (camada 7) & Servidor web (não SDN) & Mensagens maliciosas mitigadas; dano colateral & Não \\
-\cite{yungaicela2022slowrate} & DL + DRL & Mitigação de fluxos de baixa taxa & Mininet + ONOS & Taxa de detecção; sucesso da mitigação & Parcial (amostragem de fluxos) \\
-\cite{chen2022deepthrottle} & DRL & Limitação de tráfego & SDN & Tráfego normal entregue; carga do servidor & n.i. \\
-\cite{shen2023fast} & DRL & Limitação + alocação de banda & SDN-IoT & Tráfego normal encaminhado; convergência & n.i. \\
-\cite{khozam2024qos,khozam2025qosentry} & Double DQN & Limitação e redirecionamento & SDN (5G); SYN, UDP e ICMP & QoS de usuários legítimos (latência, \textit{jitter}) & n.i. \\
-\cite{silva2024sbseg} & Supervisionado (RF e outros) & Somente detecção & CIC-DDoS2019 & Acurácia, F1 & n.a. \\
-\cite{dias2023microsservicos} & Supervisionado (RF e outros) & Somente detecção & SDN com microsserviços & F1; desempenho do controlador & Parcial \\
+Malialis e Kudenko (2013; 2015) & RL multiagente & Limitação em roteadores a montante & Simulação (não SDN) & Tráfego legítimo que alcança o servidor & Não \\
+Liu et al. (2018) & DRL & Limitação de tráfego & SDN; SYN, UDP e ICMP & Desempenho frente a \textit{router throttling} & n.i. \\
+Feng et al. (2020) & RL & Mitigação de requisições (camada 7) & Servidor web (não SDN) & Mensagens maliciosas mitigadas; dano colateral & Não \\
+Yungaicela-Naula et al. (2022) & DL + DRL & Mitigação de fluxos de baixa taxa & Mininet + ONOS & Taxa de detecção; sucesso da mitigação & Parcial (amostragem de fluxos) \\
+Chen et al. (2022) & DRL & Limitação de tráfego & SDN & Tráfego normal entregue; carga do servidor & n.i. \\
+Shen et al. (2023) & DRL & Limitação + alocação de banda & SDN-IoT & Tráfego normal encaminhado; convergência & n.i. \\
+Khozam et al. (2024; 2025) & Double DQN & Limitação e redirecionamento & SDN (5G); SYN, UDP e ICMP & QoS de usuários legítimos (latência, \textit{jitter}) & n.i. \\
+Silva et al. (2024) & Supervisionado (RF e outros) & Somente detecção & CIC-DDoS2019 & Acurácia, F1 & n.a. \\
+Dias et al. (2023) & Supervisionado (RF e outros) & Somente detecção & SDN com microsserviços & F1; desempenho do controlador & Parcial \\
 \midrule
-\textbf{Este trabalho} & Double DQN & Permitir, limitar (\textit{meter}), redirecionar, bloquear temporariamente & Mininet + OVS + Ryu & Ataque bloqueado, falsos positivos, disponibilidade, latência, reação & Sim \\
+\textbf{Este trabalho} & Double DQN & Permitir, limitar (\textit{meter}), redirecionar, bloquear temporariamente & Mininet + OVS + os-ken & Ataque bloqueado, falsos positivos, disponibilidade, latência, reação & Sim \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -331,12 +330,17 @@ proposto para a disciplina:
         \textit{baselines}, métricas e cenários (Seção~\ref{sec:planejamento}).
   \item \textbf{Ambiente e dados}: construção da topologia emulada, coleta
         automatizada de tráfego rotulado, produzido de forma autorizada em
-        ambiente isolado, e automação do registro de \textit{logs} e métricas. A base CIC-DDoS2019 \cite{sharafaldin2019cicddos} é
-        usada apenas para validar o conjunto de atributos e o
-        \textit{baseline} supervisionado.
+        ambiente isolado, e automação do registro de \textit{logs} e métricas.
+        Foram usados apenas dados gerados na própria emulação: bases públicas
+        como a CIC-DDoS2019 \cite{sharafaldin2019cicddos} e a InSDN
+        \cite{elsayed2020insdn} não foram adotadas porque seus atributos, extraídos
+        de capturas completas, não correspondem aos contadores e às amostras
+        sFlow disponíveis ao controlador.
   \item \textbf{Implementação-base}: controlador com monitoramento, regras de
-        limiar fixo e detector supervisionado; testes unitários do
-        \textit{pipeline} de atributos e pequenos experimentos de integração.
+        limiar fixo e detector supervisionado; 12 testes unitários (parser
+        sFlow, atributos, recompensa, simulador, paridade entre as
+        implementações do agente e \textit{baselines}), um teste de fumaça do
+        OVS e rodadas curtas de integração.
   \item \textbf{Método proposto}: implementação do ambiente de treinamento, do
         agente e da sua integração com o controlador, com registro de
         hiperparâmetros e auditoria de cada decisão.
@@ -367,13 +371,13 @@ ao código.
 A Figura~\ref{fig:arquitetura} apresenta a arquitetura. O plano de dados,
 emulado no Mininet, contém clientes legítimos, atacantes, \textit{switches} OVS,
 o servidor-vítima (HTTP) e um nó de análise. No plano de controle, a aplicação
-Ryu é composta por quatro módulos: (i) \textbf{monitor}, que coleta
+os-ken é composta por quatro módulos: (i) \textbf{monitor}, que coleta
 \textit{FlowStats}, \textit{PortStats} e amostras sFlow a cada $\Delta t$; (ii)
 \textbf{extrator de atributos}, que agrega as estatísticas por origem; (iii)
 \textbf{agente}, que escolhe uma ação para cada origem ativa; e (iv)
 \textbf{atuador}, que traduz a ação em mensagens OpenFlow. Toda decisão é
 registrada com estado observado, valores $Q$ e ação escolhida, permitindo
-auditoria \textit{a posteriori}. Para explicar as decisões, será calculada a
+auditoria \textit{a posteriori}. Para explicar as decisões, calcula-se a
 importância de cada atributo por permutação sobre esses registros, medindo
 quanto a ação escolhida muda quando o atributo é embaralhado.
 
@@ -401,7 +405,7 @@ suportada nativamente pelo OVS, com um coletor integrado ao controlador.
   \draw[seta] (feat) -- node[above]{$o_t^i$} (agent);
   \draw[seta] (agent) -- node[above]{$a_t^i$} (act);
   \node[draw, dashed, inner sep=6pt, fit=(mon)(feat)(agent)(act),
-        label={[font=\footnotesize\bfseries]above:Controlador Ryu (plano de controle)}] {};
+        label={[font=\footnotesize\bfseries]above:Controlador os-ken (plano de controle)}] {};
 
   % Plano de dados
   \node[bloco] (hosts) at (0,-3.4)   {Clientes legítimos\\e atacantes};
@@ -577,9 +581,9 @@ de conexões semiabertas e sensibilidade à perda no gargalo) são escolhidos po
 busca em grade, minimizando o erro da disponibilidade sem defesa por cenário. Ambas as fases usam apenas os cenários de treinamento
 (S0--S3, Tabela~\ref{tab:cenarios}), assim como a escolha dos pesos da
 recompensa e dos limiares dos \textit{baselines}. A avaliação final é feita
-\emph{somente} no Mininet. Ambientes
-como o MininetGym \cite{finistrella2025mininetgym} serão considerados como
-referência para a integração.
+\emph{somente} no Mininet. O MininetGym \cite{finistrella2025mininetgym} foi
+considerado como alternativa de integração, mas não adotado por depender do
+controlador OpenDaylight.
 
 \subsection{Baselines}
 
@@ -633,7 +637,7 @@ referência para a integração.
 
 A Tabela~\ref{tab:cenarios} descreve os cenários. O tráfego legítimo é gerado
 por clientes HTTP com chegadas de Poisson, tráfego de fundo com
-\texttt{iperf} e sondas ICMP de latência; os ataques são gerados com Scapy e
+\texttt{iperf3} e sondas ICMP de latência; os ataques são gerados com
 \texttt{hping3}. Cada execução dura 180~s: 30~s de aquecimento, 120~s de
 ataque e 30~s de recuperação. Cenários marcados como \textit{não vistos} não
 são usados no treinamento.
@@ -655,6 +659,7 @@ S4 & Ataque pulsado & Rajadas \textit{on-off} de UDP/SYN (baixa taxa média) & N
 S5 & \textit{Flash crowd} & Aumento abrupto de clientes legítimos, sem ataque & Não \\
 S6 & Multivetor & SYN + UDP simultâneos, com mais atacantes que no treino & Não \\
 S7 & Rede degradada & \textit{SYN flood} de intensidade média com 20~ms de atraso e 1\% de perda nos enlaces de borda (\texttt{netem}) & Não \\
+S8 & Atacantes furtivos & SYN/UDP de baixa taxa (3\% a 25\% da intensidade baixa) e clientes legítimos intensos, gerando origens ambíguas & Não \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -689,19 +694,19 @@ gargalo não contam como mitigação. As métricas são:
 
 \subsection{Repetições e controle de variáveis}
 
-Cada combinação de método e cenário será executada 10 vezes com sementes
-distintas e fixadas, reiniciando a rede entre execuções; todos os métodos usam
-as mesmas sementes, topologia, perfis de tráfego e intervalo de coleta. Os
-resultados serão reportados como média e intervalo de confiança de 95\%
-(\textit{bootstrap}). Para comparar o agente com cada \textit{baseline}, será
-aplicado o teste de postos sinalizados de Wilcoxon pareado por semente, com
-correção de Holm para comparações múltiplas. Todos os resultados, inclusive os
-desfavoráveis, serão reportados, e os dados brutos (estatísticas, \textit{logs}
-de decisão e capturas) serão preservados. Com seis métodos, 14 configurações de
-cenário (S1--S3 em três intensidades cada) e execuções de 3~min, a campanha
-principal soma cerca de 42~horas de emulação, executadas em lote por
-\textit{scripts}; as ablações serão restritas aos cenários S1 (alta
-intensidade), S4 e S5.
+Cada combinação de método e cenário foi executada com 3 sementes distintas e
+fixadas (o protocolo prevê até 10), reiniciando a rede entre execuções; todos
+os métodos usam as mesmas sementes, topologia, perfis de tráfego e intervalo de
+coleta. Os resultados são reportados como média e intervalo de confiança de
+95\% (\textit{bootstrap}). Para comparar o agente com cada \textit{baseline},
+aplica-se o teste de postos sinalizados de Wilcoxon pareado por cenário e
+semente, com correção de Holm para comparações múltiplas. Todos os resultados,
+inclusive os desfavoráveis, são reportados, e os dados brutos (estatísticas,
+registros de decisão e \textit{logs} dos clientes) são preservados. Com seis
+métodos, 15 configurações de cenário (S1--S3 em três intensidades cada) e
+execuções de 3~min, a campanha principal soma cerca de 14~horas de emulação,
+executadas em lote por \textit{scripts}; as ablações foram restritas aos
+cenários S1H, S4, S5 e S8.
 
 % =====================================================================
 \section{Resultados}\label{sec:resultados}

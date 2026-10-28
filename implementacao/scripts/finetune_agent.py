@@ -38,7 +38,9 @@ def transitions(run_dir: Path, cfg, gamma: float):
                 pending[n] = [s["obs"], s["action"], 0.0, 0]
             p = pending.get(n)
             if p is not None:
-                r = reward(cfg, s["action"], s["prev"], s["label"], terms)
+                # recompensa por efeito medido, como no simulador
+                r = reward(cfg, s["action"], s["prev"], s["label"], terms,
+                           mitigated=s.get("mit"), harm=s.get("harm"))
                 p[2] += (gamma ** p[3]) * r
                 p[3] += 1
     return out

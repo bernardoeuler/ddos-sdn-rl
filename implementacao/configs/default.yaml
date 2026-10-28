@@ -78,6 +78,8 @@ scenarios:
   S5:  {type: flash, train: false}
   S6:  {type: multi, intensity: med, attackers: [5, 6], train: false}
   S7:  {type: syn,  intensity: med, attackers: [2, 4], degraded: {delay_ms: 20, loss_pct: 1}, train: false}
+  # atacantes de baixa taxa (3-25% da intensidade baixa) e 30% dos legítimos até 4x mais intensos
+  S8:  {type: stealth, intensity: low, attackers: [2, 4], train: false}
 
 # pacotes por segundo por atacante, por intensidade (hping3 -i u<1e6/pps>)
 attack_pps:

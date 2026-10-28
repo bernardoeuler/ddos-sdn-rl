@@ -24,7 +24,8 @@ from ddosrl.sim.env import DDoSSimEnv                            # noqa: E402
 
 def sim_dataset(cfg, episodes_per_scen: int, seed: int):
     """Observações com política 'permitir tudo' (o detector vê o tráfego bruto)."""
-    env = DDoSSimEnv(cfg)
+    # mesmas condições do agente: inclui atacantes furtivos e legítimos intensos
+    env = DDoSSimEnv(cfg, ambiguous=True)
     X, y, ent_normal, scen = [], [], [], []
     k = 0
     for name in env.scen_names:

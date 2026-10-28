@@ -66,6 +66,7 @@ class DDoSController(app_manager.OSKenApp):
         self.removed = {n: [0, 0] for n in self.hosts}    # sobreposições removidas
         self.removed_block = {n: [0, 0] for n in self.hosts}
         self.pending_del = {}
+        self.effect = {n: (0.0, 0.0) for n in self.hosts}   # (mitigado, dano) por origem
         self.req_time = {}
         self.prev_out = {n: (0, 0) for n in self.hosts}
         self.prev_in = {n: 0 for n in self.hosts}
@@ -375,16 +376,21 @@ class DDoSController(app_manager.OSKenApp):
                 ss.n_samples, ss.n_syn, ss.n_udp, ss.n_icmp = d["n"], d["syn"], d["udp"], d["icmp"]
                 ss.dst_ports, ss.conns = d["ports"], d["conns"]
             self.fx.push(n, ss)
-            if h["ip"] in self.attackers:          # estimativa de ataque que segue rumo à vítima
-                a = self.action[n]
-                mdrop = self.meter_drop[n][1] - self.prev_meter[n]
-                if a == Action.ALLOW:
-                    attack_util_bytes += ss.bytes_out
-                elif a == Action.LIMIT:
-                    attack_util_bytes += max(0, ss.bytes_out - mdrop)
-                elif a == Action.REDIRECT and ss.pkts_out:
-                    attack_util_bytes += min(ss.pkts_out, self.an_pps * self.dt) * ss.bytes_out / ss.pkts_out
+            # efeito estimado da ação vigente: fração do tráfego da origem mitigada
+            a = self.action[n]
+            mdrop = max(0, self.meter_drop[n][1] - self.prev_meter[n])
             self.prev_meter[n] = self.meter_drop[n][1]
+            if a == Action.BLOCK:
+                mit = 1.0
+            elif a == Action.LIMIT and ss.bytes_out > 0:
+                mit = min(1.0, mdrop / ss.bytes_out)
+            elif a == Action.REDIRECT and ss.pkts_out > 0:
+                mit = 1 - min(ss.pkts_out, self.an_pps * self.dt) / ss.pkts_out
+            else:
+                mit = 0.0
+            self.effect[n] = (mit, min(1.0, mit + (0.1 if a == Action.REDIRECT else 0.0)))
+            if h["ip"] in self.attackers:          # ataque que segue rumo à vítima
+                attack_util_bytes += ss.bytes_out * (1 - mit)
 
         L = self.lay
         g = GlobalSample()
@@ -441,6 +447,7 @@ class DDoSController(app_manager.OSKenApp):
                 "ip": h["ip"], "obs": [round(float(x), 5) for x in obs[n]],
                 "prev": int(prev[n]), "action": int(self.action[n]),
                 "decided": n in qi, "label": h["ip"] in self.attackers,
+                "mit": round(self.effect[n][0], 4), "harm": round(self.effect[n][1], 4),
                 "q": [round(float(x), 4) for x in q[qi[n]]] if (q is not None and n in qi) else None,
             }
         self.dlog.write(json.dumps(rec) + "\n")

@@ -116,16 +116,16 @@ class DDoSSimEnv(gym.Env):
             lo, hi = sc["attackers"]
             n_att = int(rng.integers(lo, hi + 1))
         order = rng.permutation(self.n)
-        stealthy = self.ambiguous and rng.random() < 0.3
+        is_stealth = sc["type"] == "stealth"
+        stealthy = is_stealth or (self.ambiguous and rng.random() < 0.3)
+        intense_legit = is_stealth or self.ambiguous
         self.src: list[SrcState] = []
         bulk_idx = order[n_att] if rng.random() < 0.8 else -1
         for i in range(self.n):
             if i in order[:n_att]:
                 k = list(order[:n_att]).index(i)
                 atype = sc["type"]
-                if atype == "pulse":
-                    atype = ["syn", "udp"][k % 2]
-                elif atype == "multi":
+                if atype in ("pulse", "multi", "stealth"):
                     atype = ["syn", "udp"][k % 2]
                 pps = (self.cfg["attack_pps"][sc["intensity"]] * rng.uniform(0.6, 1.4)
                        * self.params.get(f"attack_pps_scale_{atype}", self.params["attack_pps_scale"]))
@@ -137,7 +137,7 @@ class DDoSSimEnv(gym.Env):
                 self.src.append(SrcState("bulk"))
             else:
                 lam = ex["legit_rate_rps"] * rng.uniform(0.5, 1.5)
-                if self.ambiguous and rng.random() < 0.3:
+                if intense_legit and rng.random() < 0.3:
                     lam *= rng.uniform(1.0, 4.0)     # cliente legítimo intenso
                 self.src.append(SrcState("http", lam=lam))
         self.labels = np.array([s.role == "attacker" for s in self.src])
