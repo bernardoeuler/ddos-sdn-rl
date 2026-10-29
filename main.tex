@@ -53,7 +53,7 @@
   e o custo de cada ação. O agente foi implementado sobre Mininet, Open vSwitch
   e os-ken (\textit{fork} mantido do Ryu), treinado em um simulador calibrado
   com traços da emulação e comparado a limiares fixos, detecção por entropia e
-  classificadores Random Forest. Resultados preliminares (uma semente) mostram que o agente reage mais rápido (0,3~s), com custo desprezível no controlador, e, sobretudo redirecionando os atacantes, mantém a disponibilidade acima de 99\% sob inundações UDP e ICMP; sob inundação SYN, porém, restringe muitas origens legítimas e fica atrás do limiar fixo e do Random Forest.
+  classificadores Random Forest. Em 112 rodadas no Mininet (duas sementes, cenários S0--S3), o agente reage mais rápido (0,5~s), com custo desprezível no controlador, e, sobretudo redirecionando os atacantes, mantém a disponibilidade acima de 99\% sob inundações UDP e ICMP; sob inundação SYN, porém, restringe muitas origens legítimas e fica atrás do limiar fixo e do Random Forest, com diferença estatisticamente significativa.
 \end{resumo}
 
 % =====================================================================
@@ -711,15 +711,15 @@ cenários S1H, S4, S5 e S8.
 % =====================================================================
 \section{Resultados}\label{sec:resultados}
 
-\textbf{Estado da avaliação.} Os resultados a seguir são \emph{preliminares}:
-correspondem às primeiras 48 das 270 rodadas da campanha principal (180~s por
-rodada, semente 1001), cobrindo os cenários S0--S2 e S3L para os seis
-métodos. Os demais cenários de ICMP, os cenários de adaptação (S4--S8) e as
-ablações ainda estão em execução. Com uma única semente, os intervalos de
-confiança refletem apenas a variação entre cenários, e os testes de Wilcoxon
-pareados com correção de Holm não atingem significância em nenhuma comparação.
-O agente avaliado passou pelo ajuste fino no Mininet (12 episódios,
-$\epsilon=0{,}1$) com a recompensa baseada em efeito.
+\textbf{Estado da avaliação.} Os resultados a seguir correspondem a 112
+rodadas da campanha principal (180~s por rodada, sementes 1001 e 2001),
+cobrindo os cenários S0--S3M para os seis métodos; em S3H, apenas B0--B3
+foram executados. Os cenários de adaptação (S4--S8) e as ablações não foram
+executados no Mininet. Os intervalos de confiança são calculados por
+\textit{bootstrap} sobre as rodadas (cenário $\times$ semente) e, portanto,
+refletem sobretudo a variação entre cenários. O agente avaliado passou pelo
+ajuste fino no Mininet (12 episódios, $\epsilon=0{,}1$) com a recompensa
+baseada em efeito.
 
 \subsection{Linha de base sem defesa e calibração}
 
@@ -732,9 +732,9 @@ quadrático da disponibilidade simulada para 0,0175.
 
 \begin{table}[ht]
 \centering
-\caption{Resultados preliminares no Mininet, média dos cenários S1L--S3L
-  (180~s, uma semente; $\pm$ meia-largura do IC 95\% por \textit{bootstrap}
-  entre cenários). TAB: tráfego de ataque descartado por limitação ou
+\caption{Resultados no Mininet, média dos cenários S1L--S3M
+  (180~s, duas sementes, 16 rodadas por método; $\pm$ meia-largura do IC
+  95\% por \textit{bootstrap} entre rodadas). TAB: tráfego de ataque descartado por limitação ou
   bloqueio (não inclui o redirecionado); Legít.: fração de origens legítimas
   que receberam alguma ação restritiva.}
 \label{tab:res-eficacia}
@@ -744,19 +744,19 @@ quadrático da disponibilidade simulada para 0,0175.
 \textbf{Método} & \textbf{TAB (\%)} & \textbf{Legít. (\%)} &
 \textbf{Disp. (\%)} & \textbf{Lat. p95 (ms)} & \textbf{Reação (s)} \\
 \midrule
-B0 -- Sem defesa & 0,0 & 0,0 & 65,0 $\pm$ 28,2 & 921 & -- \\
-B1 -- Limiar fixo & 94,2 $\pm$ 0,7 & 0,0 & 88,3 $\pm$ 12,9 & 673 & 1,7 \\
-B2 -- Entropia & 93,9 $\pm$ 0,8 & 100,0 & 24,0 $\pm$ 6,8 & 1.080 & 2,0 \\
-B3 -- RF & 94,6 $\pm$ 0,5 & 3,6 $\pm$ 3,6 & 88,0 $\pm$ 13,8 & 666 & 1,0 \\
-B4 -- RF graduado & 95,1 $\pm$ 0,7 & 0,0 & 88,9 $\pm$ 13,0 & 547 & 1,1 \\
-Agente (proposto) & 52,0 $\pm$ 22,5 & 41,1 $\pm$ 23,2 & 67,4 $\pm$ 24,9 & 562 & 0,3 \\
+B0 -- Sem defesa & 0,0 & 0,0 & 67,3 $\pm$ 18,7 & 885 & -- \\
+B1 -- Limiar fixo & 93,9 $\pm$ 0,6 & 0,0 & 91,3 $\pm$ 7,4 & 606 & 1,7 \\
+B2 -- Entropia & 93,1 $\pm$ 1,3 & 100,0 & 24,8 $\pm$ 3,2 & 1.091 & 2,7 \\
+B3 -- RF & 94,4 $\pm$ 0,6 & 1,5 $\pm$ 1,8 & 91,7 $\pm$ 7,9 & 570 & 1,0 \\
+B4 -- RF graduado & 94,5 $\pm$ 0,8 & 0,0 & 91,1 $\pm$ 8,4 & 523 & 1,0 \\
+Agente (proposto) & 60,6 $\pm$ 15,6 & 37,3 $\pm$ 16,5 & 71,4 $\pm$ 18,0 & 534 & 0,5 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{table}[ht]
 \centering
-\caption{Agente por cenário no Mininet (uma semente). Tempo restr.: fração do
+\caption{Agente por cenário no Mininet (média de duas sementes). Tempo restr.: fração do
   tempo de ataque em que as origens legítimas estiveram sob ação restritiva.}
 \label{tab:res-agente}
 \footnotesize
@@ -765,38 +765,45 @@ Agente (proposto) & 52,0 $\pm$ 22,5 & 41,1 $\pm$ 23,2 & 67,4 $\pm$ 24,9 & 562 & 
 \textbf{Cenário} & \textbf{TAB (\%)} & \textbf{Legít. (\%)} &
 \textbf{Tempo restr. (\%)} & \textbf{Disp. agente (\%)} & \textbf{Disp. B0 (\%)} \\
 \midrule
-S0 (normal)   & --   & 8,3  & 1,8 & 99,2 & 100,0 \\
-S1L (SYN)     & 80,7 & 62,5 & 3,3 & 32,4 & 99,9 \\
-S1M (SYN)     & 93,7 & 87,5 & 9,3 & 20,5 & 93,7 \\
-S1H (SYN)     & 49,6 & 87,5 & 7,4 & 20,4 & 7,8 \\
-S2L (UDP)     & 39,6 & 12,5 & 0,7 & 99,6 & 99,9 \\
-S2M (UDP)     & 13,7 & 12,5 & 0,6 & 99,5 & 21,1 \\
-S2H (UDP)     & 7,3  & 12,5 & 0,6 & 99,6 & 1,9 \\
-S3L (ICMP)    & 79,6 & 12,5 & 0,6 & 99,7 & 99,9 \\
+S0 (normal)   & --   & 12,5 & 2,8 & 99,1 & 100,0 \\
+S1L (SYN)     & 79,8 & 56,2 & 2,6 & 36,3 & 99,9 \\
+S1M (SYN)     & 93,1 & 83,8 & 5,6 & 26,0 & 95,6 \\
+S1H (SYN)     & 73,0 & 88,8 & 5,4 & 24,7 & 24,4 \\
+S2L (UDP)     & 57,5 & 11,2 & 0,8 & 99,6 & 100,0 \\
+S2M (UDP)     & 23,1 & 11,2 & 0,8 & 99,6 & 38,5 \\
+S2H (UDP)     & 9,7  & 11,2 & 0,8 & 99,6 & 3,7 \\
+S3L (ICMP)    & 77,6 & 11,2 & 0,8 & 99,6 & 100,0 \\
+S3M (ICMP)    & 81,5 & 12,5 & 0,7 & 99,7 & 99,5 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Os \textit{baselines} B1, B3 e B4 descartaram cerca de 94--95\% do tráfego de
+Os \textit{baselines} B1, B3 e B4 descartaram cerca de 93--95\% do tráfego de
 ataque quase sem restringir usuários legítimos e elevaram a disponibilidade
-média de 65,0\% para cerca de 88\% (Tabela~\ref{tab:res-eficacia}). B2
+média de 67,3\% para cerca de 91\% (Tabela~\ref{tab:res-eficacia}). B2
 (entropia) restringiu todas as origens legítimas, efeito do limiar estimado
 sobre um tráfego normal de baixa entropia. O agente reagiu mais rápido que
-todos (0,3~s), mas, na média, ficou próximo da linha sem defesa.
+todos (0,5~s), mas, na média, ficou próximo da linha sem defesa. O teste de
+Wilcoxon pareado por rodada (15 pares) com correção de Holm indica que a
+diferença é significativa: o agente teve disponibilidade menor que B1, B3 e
+B4 (diferença média de 19 pontos percentuais, $p_{\text{Holm}} < 0{,}01$),
+menor TAB (cerca de 33 pontos) e mais origens legítimas restringidas (cerca
+de 36 pontos), e foi superior apenas a B2 (47 pontos de disponibilidade,
+$p_{\text{Holm}} < 0{,}001$).
 
 A média esconde dois comportamentos opostos (Tabela~\ref{tab:res-agente}).
-Sob UDP, o agente manteve 99,5--99,6\% de disponibilidade, inclusive em S2H,
-onde sem defesa ela cai para 1,9\%, embora a TAB tenha ficado entre 7\% e
-40\%. A diferença se explica pela ação escolhida: em cerca de 95\% dos
+Sob UDP e ICMP, o agente manteve 99,6--99,7\% de disponibilidade, inclusive
+em S2H, onde sem defesa ela cai para 3,7\%, embora a TAB sob UDP tenha ficado
+entre 10\% e 58\%. A diferença se explica pela ação escolhida: em cerca de 95\% dos
 intervalos de decisão sobre atacantes, o agente \emph{redirecionou} o tráfego
 para o nó de análise, que o retira do caminho da vítima mas não é contado como
 descarte pela TAB. Sob SYN, ao contrário, a disponibilidade caiu para
-20--32\%, abaixo da linha sem defesa em S1L e S1M. O agente restringiu, em
-algum momento, de 62\% a 88\% das origens legítimas, quase sempre com
-limitação de taxa e por pouco tempo (3--9\% do período de ataque); essa
+25--36\%, abaixo da linha sem defesa em S1L e S1M. O agente restringiu, em
+algum momento, de 56\% a 89\% das origens legítimas, quase sempre com
+limitação de taxa e por pouco tempo (3--6\% do período de ataque); essa
 restrição curta, sozinha, não parece explicar a queda, cuja causa ainda está
 sendo investigada (ver Seção~\ref{sec:discussao}). Em S0, sem ataque, o agente
-restringiu 8\% das origens legítimas, mantendo 99,2\% de disponibilidade.
+restringiu 12,5\% das origens legítimas, mantendo 99,1\% de disponibilidade.
 
 \subsection{Adaptação e uso das ações (QP2 e QP3)}
 
@@ -838,7 +845,7 @@ depende das ablações, ainda em execução.
 
 \begin{table}[ht]
 \centering
-\caption{Custo no controlador no cenário S1H (180~s).}
+\caption{Custo no controlador no cenário S1H (180~s, média de duas sementes).}
 \label{tab:res-custo}
 \footnotesize
 \begin{tabular}{@{}lcccc@{}}
@@ -846,27 +853,27 @@ depende das ablações, ainda em execução.
 \textbf{Método} & \textbf{CPU (\%)} & \textbf{Memória (MB)} &
 \textbf{Msgs OF/s} & \textbf{Decisão (ms)} \\
 \midrule
-B1 -- Limiar fixo & 1,1 & 195 & 15,0 & 0,10 \\
-B3 -- RF          & 3,9 & 198 & 15,1 & 27,94 \\
-Agente            & 1,0 & 68  & 15,2 & 0,29 \\
+B1 -- Limiar fixo & 1,4 & 190 & 14,9 & 0,17 \\
+B3 -- RF          & 4,5 & 192 & 14,9 & 32,11 \\
+Agente            & 1,3 & 68  & 15,1 & 0,48 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-O ciclo de decisão do agente levou cerca de 0,3~ms, três ordens de grandeza
+O ciclo de decisão do agente levou cerca de 0,5~ms, três ordens de grandeza
 abaixo de $\Delta t=1$~s, com CPU equivalente à do limiar fixo e menos
-memória; o Random Forest foi o mais custoso (cerca de 28~ms por ciclo). A
+memória; o Random Forest foi o mais custoso (cerca de 32~ms por ciclo). A
 hipótese H4 foi confirmada.
 
 % =====================================================================
 \section{Discussão e Ameaças à Validade}\label{sec:discussao}
 
-\textbf{Discussão.} Os resultados preliminares dependem do tipo de ataque.
+\textbf{Discussão.} Os resultados dependem do tipo de ataque.
 Contra inundações volumétricas (UDP e ICMP), o agente protegeu a vítima tão bem
 quanto os \textit{baselines}, reagiu mais rápido e afetou pouco os legítimos,
 preferindo redirecionar a bloquear. Contra inundação SYN, porém, foi pior que
 os \textit{baselines} e, em dois dos três níveis, pior que não defender (H1 e
-H2 não confirmadas até aqui). Três explicações são plausíveis e serão
+H2 não confirmadas; a diferença para B1, B3 e B4 é significativa). Três explicações são plausíveis e serão
 verificadas. (i) Redirecionar um SYN \textit{flood} protege menos que
 bloqueá-lo: as conexões semiabertas já acumuladas continuam ocupando a fila do
 servidor, e a recompensa por efeito trata redirecionamento e bloqueio de modo
@@ -915,8 +922,8 @@ redirecionar para análise ou bloquear temporariamente. A solução completa --
 controlador os-ken com contadores por origem e sFlow, simulador calibrado com
 traços do Mininet, cinco \textit{baselines}, ajuste fino na emulação e
 \textit{scripts} reprodutíveis de experimento e análise -- foi construída sobre
-ferramentas abertas. Nos resultados preliminares, o agente foi o mais rápido
-(0,3~s), teve custo desprezível no controlador e, contra inundações UDP e ICMP,
+ferramentas abertas. Em 112 rodadas no Mininet, o agente foi o mais rápido
+(0,5~s), teve custo desprezível no controlador e, contra inundações UDP e ICMP,
 manteve a disponibilidade acima de 99\% usando sobretudo o redirecionamento.
 Contra inundação SYN, porém, restringiu muitos usuários legítimos e ficou
 atrás do limiar fixo e do Random Forest, que tiveram o melhor desempenho geral.
