@@ -1,0 +1,12 @@
+{"episode": 0, "scenario": "S3H", "transitions": 1544, "buffer": 1544, "loss": 0.11160600915861627, "tab": 0.9627106511164791, "availability": 0.7759656652360515, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 1, "scenario": "S2H", "transitions": 1765, "buffer": 3309, "loss": 0.12718195537105204, "tab": 0.4261289609174964, "availability": 0.8006952491309386, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 2, "scenario": "S2H", "transitions": 1835, "buffer": 5144, "loss": 0.1368432231557866, "tab": 0.9324280916523171, "availability": 0.8441082072443833, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 3, "scenario": "S3M", "transitions": 1782, "buffer": 6926, "loss": 0.12644026881083847, "tab": 0.8568286715074929, "availability": 0.8484848484848485, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 4, "scenario": "S2M", "transitions": 1813, "buffer": 8739, "loss": 0.13729929324860374, "tab": 0.4263612578021482, "availability": 0.8401956787607012, "legit_restricted_any": 1.0, "elapsed_s": 189}
+{"episode": 5, "scenario": "S3L", "transitions": 1598, "buffer": 10337, "loss": 0.12845865895971656, "tab": 0.7855797482892282, "availability": 0.816079295154185, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 6, "scenario": "S3M", "transitions": 1743, "buffer": 12080, "loss": 0.1338010574070116, "tab": 0.9120990559010508, "availability": 0.851931330472103, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 7, "scenario": "S1M", "transitions": 1640, "buffer": 13720, "loss": 0.1367172545256714, "tab": 0.9228457391766053, "availability": 0.33090379008746357, "legit_restricted_any": 1.0, "elapsed_s": 189}
+{"episode": 8, "scenario": "S0", "transitions": 1686, "buffer": 15406, "loss": 0.12924300294059018, "tab": NaN, "availability": 0.7486592777976403, "legit_restricted_any": 1.0, "elapsed_s": 189}
+{"episode": 9, "scenario": "S1H", "transitions": 1841, "buffer": 17247, "loss": 0.11672926413205763, "tab": 0.9429057288174436, "availability": 0.18366500829187396, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 10, "scenario": "S1M", "transitions": 1525, "buffer": 18772, "loss": 0.14802617319549125, "tab": 0.921289227382222, "availability": 0.5364333652924257, "legit_restricted_any": 1.0, "elapsed_s": 188}
+{"episode": 11, "scenario": "S3M", "transitions": 1518, "buffer": 20290, "loss": 0.1506837533072879, "tab": 0.9052220063018308, "availability": 0.8303571428571429, "legit_restricted_any": 1.0, "elapsed_s": 189}

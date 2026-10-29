@@ -1,0 +1,15 @@
+{
+  "run_dir": "/root/ddosrl_runs/S4/DQN/seed1001",
+  "policy": "DQN",
+  "scenario": "S4",
+  "seed": 1001,
+  "attackers": [
+    "10.0.0.8",
+    "10.0.0.6",
+    "10.0.0.11",
+    "10.0.0.12"
+  ],
+  "epsilon": 0.0,
+  "model_dir": null,
+  "config": "/home/bernardoeuler/Projects/ufc/redes/ddos-sdn-rl/implementacao/configs/default.yaml"
+}

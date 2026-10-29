@@ -1,0 +1,10 @@
+{
+  "run_dir": "/root/ddosrl_runs/S0/B0/seed2001",
+  "policy": "B0",
+  "scenario": "S0",
+  "seed": 2001,
+  "attackers": [],
+  "epsilon": 0.0,
+  "model_dir": null,
+  "config": "/home/bernardoeuler/Projects/ufc/redes/ddos-sdn-rl/implementacao/configs/default.yaml"
+}

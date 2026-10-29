@@ -1,0 +1,14 @@
+{
+  "t0": 1793215085.7103603,
+  "attack_start": null,
+  "attack_end": null,
+  "window": [
+    1793215115.7103603,
+    1793215235.7103603
+  ],
+  "pulse": null,
+  "attackers": [],
+  "bulk": "10.0.0.10",
+  "types": {},
+  "pps": {}
+}
